@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart' as auth;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 import '../theme/routes.dart';
-import '../resources/bloc_provider.dart';
+import '../resources/user.dart';
 import '../widgets/custom_alert_dialog.dart';
 
 class Login extends StatefulWidget {
@@ -74,9 +75,10 @@ class _LoginViewState extends State<Login> {
                           ),
                           onPressed: () async {
                             try {
-                              await Firebase.initializeApp();
-                              auth.FirebaseAuth.instance.sendPasswordResetEmail(
-                                  email: _emailControllerField.text);
+                              //TODO: send password reset email
+                              // await Firebase.initializeApp();
+                              // auth.FirebaseAuth.instance.sendPasswordResetEmail(
+                              //     email: _emailControllerField.text);
                               Navigator.of(context).pop();
                             } catch (e) {
                               print(e);
@@ -200,23 +202,27 @@ class _LoginViewState extends State<Login> {
         ),
         onPressed: () async {
           try {
-            await Firebase.initializeApp();
+            // await Firebase.initializeApp();
             print(_emailController.text.trim());
-            auth.User user =
-                (await auth.FirebaseAuth.instance.signInWithEmailAndPassword(
-              email: _emailController.text.trim(),
-              password: _passwordController.text,
-            ))
-                    .user;
-            if (user != null) {
-              // now receive API key also from our backend
-              // print(user.getIdToken());
-              // TODO: signing in User! update the get method on server side
-              // userBloc.signinUser(_emailController.text, "", "");
-              SharedPreferences prefs = await SharedPreferences.getInstance();
-              prefs.setString('displayName', user.displayName);
-              Navigator.of(context).pushNamed(AppRoutes.menu);
-            }
+            await Provider.of<User>(context, listen: false).register(
+              _emailController.text.trim(),
+              _passwordController.text,
+            );
+            // auth.User user =
+            //     (await auth.FirebaseAuth.instance.signInWithEmailAndPassword(
+            //   email: _emailController.text.trim(),
+            //   password: _passwordController.text,
+            // ))
+            //         .user;
+            // if (user != null) {
+            //   // now receive API key also from our backend
+            //   // print(user.getIdToken());
+            //   // TODO: signing in User! update the get method on server side
+            //   // userBloc.signinUser(_emailController.text, "", "");
+            //   SharedPreferences prefs = await SharedPreferences.getInstance();
+            //   prefs.setString('displayName', user.displayName);
+            Navigator.of(context).pushNamed(AppRoutes.menu);
+            // }
           } catch (e) {
             print(e);
             _emailController.text = "";
