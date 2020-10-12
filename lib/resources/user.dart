@@ -6,6 +6,8 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 
+import "functions.dart";
+
 // import '../models/http_exception.dart';
 
 class User with ChangeNotifier {
@@ -13,6 +15,7 @@ class User with ChangeNotifier {
   String _userName;
   String _email;
   String _userId;
+  final String uri = 'https://api.kantnprojekt.club/v0_1/user';
 
   bool get isAuth {
     return token != null;
@@ -34,16 +37,18 @@ class User with ChangeNotifier {
     return _email;
   }
 
-  Future<void> _authenticate(
-      String email, String password, String urlSgement) async {
-    final url = 'https://api.kantnprojekt.club/v0_1/user/$urlSgement/';
+  Future<void> _authenticate(String email, String password, String actionName,
+      {String userName = "", String oldPassword = ""}) async {
+    final url = uri + '?action=$actionName';
     try {
       final response = await http.post(
         url,
         body: json.encode(
           {
             'email': email,
-            'password': password,
+            'password': generateMd5("kantnprojekt_" + password),
+            'user_name': userName,
+            'old_password': oldPassword,
             'returnSecureToken': true,
           },
         ),
@@ -74,12 +79,18 @@ class User with ChangeNotifier {
     }
   }
 
-  Future<void> register(String email, String password) async {
-    return _authenticate(email, password, 'register');
+  Future<void> register(String email, String password, String userName) async {
+    return _authenticate(email, password, 'register', userName: userName);
   }
 
   Future<void> login(String email, String password) async {
     return _authenticate(email, password, 'login');
+  }
+
+  Future<void> resetPassword(
+      String email, String newPassword, String oldPassword) async {
+    return _authenticate(email, newPassword, 'reset_password',
+        oldPassword: oldPassword);
   }
 
   Future<bool> tryAutoLogin() async {
@@ -112,8 +123,11 @@ class User with ChangeNotifier {
 
 class Users {
   Map<String, String> users; //userId: userName
+  String _userId;
+  String _token;
+  final String uri = 'https://api.kantnprojekt.club/v0_1/user';
 
-  Users();
+  Users(this._userId, this._token);
 
   Future init() async {
     final prefs = await SharedPreferences.getInstance();
@@ -126,7 +140,33 @@ class Users {
     if (users.containsKey(userId)) {
       return (users[userId]);
     }
-    //TODO: get username via API
-    return ("Kantn");
+
+    Map<String, String> queryParameters = {"user_id": userId};
+    String url = Uri(
+      host: uri,
+      queryParameters: queryParameters,
+    ).toString();
+    final response = await http.get(
+      url,
+      headers: {
+        "token": _token,
+        "user_id": _userId,
+      },
+    );
+    final Map result = json.decode(response.body);
+
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      // for (Map json_ in result["data"]) {
+      try {
+        return (result["user_name"]);
+      } catch (Exception) {
+        print(Exception);
+      }
+    } else {
+      // If that call was not successful, throw an error.
+      throw Exception('Failed to load username');
+    }
+
+    return ("Unknown User");
   }
 }
