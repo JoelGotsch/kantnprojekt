@@ -6,7 +6,8 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 
-import "functions.dart";
+import '../misc/functions.dart';
+import '../misc/http_exception.dart';
 
 // import '../models/http_exception.dart';
 
@@ -56,9 +57,9 @@ class User with ChangeNotifier {
       final responseData = json.decode(response.body);
       //TODO: check for responsecode and throw error in Snackbar
 
-      // if (responseData['error'] != null) {
-      //   throw HttpException(responseData['error']['message']);
-      // }
+      if (responseData['message'] != null) {
+        throw HttpException(responseData['message']);
+      }
       _token = responseData['token'];
       _userName = responseData['user_name'];
       _userId = responseData['user_id'];
@@ -164,7 +165,7 @@ class Users {
       }
     } else {
       // If that call was not successful, throw an error.
-      throw Exception('Failed to load username');
+      throw HttpException('Failed to load username: ' + result["message"]);
     }
 
     return ("Unknown User");
