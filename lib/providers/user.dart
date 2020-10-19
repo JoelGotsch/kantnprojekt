@@ -16,7 +16,7 @@ class User with ChangeNotifier {
   String _userName;
   String _email;
   String _userId;
-  final String uri = 'https://api.kantnprojekt.club/v0_1/user';
+  final String uri = 'http://api.kantnprojekt.club/v0_1/user';
 
   bool get isAuth {
     return token != null;
@@ -40,12 +40,12 @@ class User with ChangeNotifier {
 
   Future<void> _authenticate(String email, String password, String actionName,
       {String userName = "", String oldPassword = ""}) async {
-    final url = uri + '?action=$actionName';
     try {
       final response = await http.post(
-        url,
+        uri,
         body: json.encode(
           {
+            'action': actionName,
             'email': email,
             'password': generateMd5("kantnprojekt_" + password),
             'user_name': userName,
@@ -53,10 +53,11 @@ class User with ChangeNotifier {
             'returnSecureToken': true,
           },
         ),
+        headers: {"Content-Type": "application/json"},
       );
       final responseData = json.decode(response.body);
       //TODO: check for responsecode and throw error in Snackbar
-
+      print(responseData.toString());
       if (responseData['message'] != null) {
         throw HttpException(responseData['message']);
       }
@@ -118,17 +119,19 @@ class User with ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     prefs.remove('userData');
+    prefs.remove('Workouts');
+    prefs.remove('Exercises');
     // prefs.clear();
   }
 }
 
 class Users {
   Map<String, String> users; //userId: userName
-  String _userId;
+  // String _userId;
   String _token;
   final String uri = 'https://api.kantnprojekt.club/v0_1/user';
 
-  Users(this._userId, this._token);
+  Users(this._token);
 
   Future init() async {
     final prefs = await SharedPreferences.getInstance();
@@ -151,7 +154,6 @@ class Users {
       url,
       headers: {
         "token": _token,
-        "user_id": _userId,
       },
     );
     final Map result = json.decode(response.body);

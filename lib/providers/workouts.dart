@@ -23,15 +23,21 @@ class Action {
   Action(
       this.exerciseId, this.workoutId, this.number, this.note, this.exercise);
 
-  factory Action.fromJson(Map<String, dynamic> parsedJson, workoutId) {
+  factory Action.fromJson(Map<String, dynamic> parsedJson, workoutId,
+      {Exercise exercise}) {
     Exercise ex;
-    Exercises exs = Exercises();
-    exs.init();
+    // Exercises exs = Exercises();
+    // exs.init();
     // this is probably inefficient as a new object is created each time, one is sufficient and cleaner!
     try {
-      ex = Exercise.fromJson(parsedJson['exercise']);
+      if (exercise != null) {
+        ex = exercise;
+      } else {
+        ex = Exercise.fromJson(parsedJson['exercise']);
+      }
     } catch (e) {
-      ex = exs.getExercise(parsedJson['exercise_id']);
+      throw Exception("Exercise was not part of the Action-information");
+      // ex = exs.getExercise(parsedJson['exercise_id']);
     }
 
     Action ac = Action(
@@ -59,27 +65,32 @@ class Action {
     return ((this.number - remainingAllowance) * this.exercise.points);
   }
 
-  @override
-  String toString() {
-    return (json.encode({
+  Map<String, dynamic> toJson() {
+    return ({
       'id': actionId,
       'exercise_id': exerciseId,
+      'exercise': exercise.toJson(),
       'workout_id': workoutId,
       'number': number,
       'note': note,
-      'points': this.points,
-    }));
+      'points': points,
+    });
+  }
+
+  @override
+  String toString() {
+    return (json.encode(this.toJson()));
   }
 }
 
-class Workout {
+class Workout with ChangeNotifier {
   String workoutId; //later from database, provided by API
   String localId;
   String userId;
-  DateTime date;
+  DateTime date = DateTime.now();
   DateTime latestEdit = DateTime.now();
-  String note;
-  Map<String, Action> actions; //actionId:action
+  String note = "";
+  Map<String, Action> actions = {}; //actionId:action
   bool _uploaded = false;
   bool _notDeleted = true;
 
@@ -87,7 +98,20 @@ class Workout {
     return (_uploaded);
   }
 
-  Workout(this.workoutId, this.localId, this.userId, this.date, this.note);
+  Workout({this.workoutId, this.localId, this.userId, this.date, this.note});
+
+  // set workoutId(String woId) {
+  //   this.workoutId = woId;
+  // }
+
+  factory Workout.newWithUserId(userId) {
+    return (Workout(
+        workoutId: null,
+        localId: getRandomString(20),
+        userId: userId,
+        date: DateTime.now(),
+        note: ""));
+  }
 
   factory Workout.fromJson(Map<String, dynamic> parsedJson) {
     String id;
@@ -97,11 +121,11 @@ class Workout {
       id = parsedJson['local_id'];
     }
     Workout wo = Workout(
-      parsedJson['id'],
-      id,
-      parsedJson['user_id'].toString(),
-      DateTime.parse(parsedJson['date']),
-      parsedJson['note'].toString(),
+      workoutId: parsedJson['id'],
+      localId: id,
+      userId: parsedJson['user_id'].toString(),
+      date: DateTime.parse(parsedJson['date']),
+      note: parsedJson['note'].toString(),
       // parsedJson['points'],
     );
     wo.latestEdit = DateTime.parse(parsedJson['latest_edit']);
@@ -117,7 +141,7 @@ class Workout {
       wo._notDeleted = parsedJson['not_deleted'];
     }
     // add exercises
-    (parsedJson['actions'] as Map<String, Action>).forEach((key, value) {
+    (parsedJson['actions'] as Map<String, dynamic>).forEach((key, value) {
       wo.addAction(
           Action.fromJson(value as Map<String, dynamic>, wo.workoutId));
     });
@@ -132,12 +156,24 @@ class Workout {
     return points;
   }
 
-  @override
-  String toString() {
-    final String actionsStr = json.encode(actions);
-    // json.encode(Map.fromIterable(actions, key: (e) => e.workoutId, value: (e) => e.toString()));
-    print("action_str:\\" + actionsStr);
-    return (json.encode({
+  Workout copy() {
+    Workout wo = Workout(
+        date: this.date,
+        localId: this.localId,
+        note: this.note,
+        userId: this.userId,
+        workoutId: this.workoutId);
+    wo.actions = this.actions;
+    wo.latestEdit = this.latestEdit;
+    return (wo);
+  }
+
+  Map<String, dynamic> toJson() {
+    Map<String, dynamic> helper = {};
+    actions.forEach((key, value) {
+      helper[key] = value.toJson();
+    });
+    return ({
       'id': workoutId,
       'local_id': localId,
       'user_id': userId,
@@ -146,14 +182,20 @@ class Workout {
       'latest_edit': latestEdit.toIso8601String(),
       'note': note,
       'points': points,
-      'actions': actionsStr,
+      'actions': helper,
       'not_deleted': _notDeleted,
       // 'uploaded': _uploaded,
-    }));
+    });
+  }
+
+  @override
+  String toString() {
+    return (json.encode(this.toJson()));
   }
 
   void addAction(Action ac) {
     // can have mulitple actions of same exercise (i.e. mulitple push-up Exercises)
+    ac.workoutId = this.workoutId;
     if (actions.containsKey(ac.actionId)) {
       // update action
       Action oldAc = actions[ac.actionId];
@@ -171,6 +213,11 @@ class Workout {
     latestEdit = DateTime.now();
   }
 
+  void setDate(DateTime newDate) {
+    this.date = newDate;
+    notifyListeners();
+  }
+
   void deleteAction(String actionId) {
     // Action ac = actions[actionId];
     // this.points -= ac.points;
@@ -182,35 +229,91 @@ class Workout {
 
 class Workouts with ChangeNotifier {
   // manages all the workout- objects: making sure they are uploaded/
-  Map<String, Workout> _workouts;
+  Map<String, Workout> _workouts = {};
+  Map<String, Exercise> _exercises = {};
   String _token;
-  String _userId;
   // final String uri = "http://api.kantnprojekt.club/v0_1/test";
   final String uri = "http://api.kantnprojekt.club/v0_1/workouts";
 
-  void init() async {
+  Workouts(this._token, this._workouts, this._exercises);
+
+  Future<void> init() async {
     // loads workouts from sharedPreferences (i.e. Phone storage)
+    print("workouts init is running..");
     final prefs = await SharedPreferences.getInstance();
-    Map<String, dynamic> _json = json.decode(prefs.getString("Workouts"));
-    _json.forEach((key, value) {
-      _workouts.putIfAbsent(value.id, () => Workout.fromJson(value));
-    });
+    try {
+      Map<String, dynamic> _jsonEx = json.decode(prefs.getString("Exercises"));
+      _jsonEx.forEach((key, value) {
+        this.addExercise(Exercise.fromJson(value));
+      });
+      if (_exercises.length < 6) {
+        print(
+            "Definitely not all exercises are loaded. Now loading them from server.");
+        await this.fetchAllExercises();
+      }
+    } catch (e) {
+      print("Error loading exercises from memory. Now fetching from server.. " +
+          e.toString());
+      try {
+        await this.fetchAllExercises();
+      } catch (e) {
+        print("Couldn't fetch exercises from server " + e.toString());
+      }
+    }
+    try {
+      Map<String, dynamic> _json = json.decode(prefs.getString("Workouts"));
+      _json.forEach((key, value) {
+        this.addWorkout(Workout.fromJson(value));
+      });
+    } catch (e) {
+      print("Couldn't load stored exercises/workouts. " + e.toString());
+    }
+    print("now fetching new workouts..");
+    await this.fetchNew();
     notifyListeners();
   }
 
   Map<String, Workout> get workouts {
-    Map<String, Workout> notDeletedWorkouts;
+    Map<String, Workout> notDeletedWorkouts = {};
     _workouts.forEach((key, value) {
       if (value._notDeleted) {
         notDeletedWorkouts.putIfAbsent(key, () => value);
       }
     });
-    return {...notDeletedWorkouts};
+    return (notDeletedWorkouts);
+  }
+
+  Map<String, Exercise> get exercises {
+    Map<String, Exercise> notDeletedExercises = {};
+    _exercises.forEach((key, value) {
+      if (value.notDeleted) {
+        notDeletedExercises.putIfAbsent(key, () => value);
+      }
+    });
+    return (notDeletedExercises);
+  }
+
+  Workout byId(String workoutId) {
+    if (_workouts.containsKey(workoutId)) {
+      return (_workouts[workoutId]);
+    } else {
+      throw (Exception("Couldn't find workout with id: " + workoutId));
+    }
+  }
+
+  Map<String, Workout> get allWorkouts {
+    return (_workouts);
+  }
+
+  Map<String, Exercise> get allExercises {
+    return (_exercises);
   }
 
   void save() async {
     final prefs = await SharedPreferences.getInstance();
+    print("saving workouts and exercises..");
     prefs.setString('Workouts', this.toString());
+    prefs.setString('Exercises', this.exercisesToString());
   }
 
   Future<Map<String, Workout>> _fetch(
@@ -231,27 +334,27 @@ class Workouts with ChangeNotifier {
       queryParameters["end_date"] = endDate.toIso8601String();
     }
     queryParameters["number"] = number.toString();
-    String url = Uri(
-      host: uri,
-      queryParameters: queryParameters,
-    ).toString();
-    print("fetch Url=" + url);
+    Uri url = Uri.http(
+      "api.kantnprojekt.club",
+      "/v0_1/workouts",
+      queryParameters,
+    );
     final response = await http.get(
       url,
       headers: {
         "token": _token,
-        "user_id": _userId,
+        // "user_id": _userId,
       },
     );
     final Map result = json.decode(response.body);
-    print(response.statusCode);
-    print("fetch workouts result:\\" + result.toString());
 
     if (response.statusCode == 201 || response.statusCode == 200) {
       // for (Map json_ in result["data"]) {
       for (Map json_ in result.values) {
         try {
-          newWorkouts.putIfAbsent(json_["id"], () => Workout.fromJson(json_));
+          Workout wo = Workout.fromJson(json_);
+          newWorkouts.putIfAbsent(json_["id"], () => wo);
+          print("fetched workout.. " + wo.workoutId);
         } catch (Exception) {
           print(Exception);
         }
@@ -264,8 +367,9 @@ class Workouts with ChangeNotifier {
   }
 
   Future<void> fetchAll() async {
+    print("Fetching all workouts...");
     Map<String, Workout> allWorkouts = await this._fetch();
-    if (allWorkouts.length > 0) {
+    if (allWorkouts != null && allWorkouts.length > 0) {
       _workouts = allWorkouts;
       notifyListeners();
       this.save();
@@ -274,11 +378,14 @@ class Workouts with ChangeNotifier {
 
   Future<void> fetchNew() async {
     List<DateTime> workoutTimes = [];
-    _workouts.forEach((key, value) => workoutTimes.add(value.latestEdit));
+    print("fetching new workouts");
+    _workouts.forEach((key, value) => workoutTimes.add(value.date));
     DateTime newestDate = calcMaxDate(workoutTimes);
     Map<String, Workout> newWorkouts = await this._fetch(startDate: newestDate);
-    if (newWorkouts.length > 0) {
+    print("fetched new workouts");
+    if (newWorkouts != null && newWorkouts.length > 0) {
       newWorkouts.forEach((key, value) {
+        print("added workout $key");
         _workouts[key] = value;
       });
       notifyListeners();
@@ -286,21 +393,57 @@ class Workouts with ChangeNotifier {
     }
   }
 
+  Future<void> fetchAllExercises() async {
+    Uri url = Uri.http(
+      "api.kantnprojekt.club",
+      "/v0_1/exercises",
+      // queryParameters,
+    );
+    final response = await http.get(
+      url,
+      headers: {
+        "token": _token,
+        // "user_id": _userId,
+      },
+    );
+    final Map<String, dynamic> result = json.decode(response.body);
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      for (Map json_ in result.values) {
+        // for (Map json_ in result.values) {
+        try {
+          print("added exercise from server to list.");
+          this.addExercise(Exercise.fromJson(json_));
+        } catch (Exception) {
+          print(Exception);
+        }
+      }
+    } else {
+      // If that call was not successful, throw an error.
+      throw Exception('Failed to load Exercises');
+    }
+  }
+
+  Map<String, dynamic> workoutsToJson({bool allWorkouts = true}) {
+    // contains all workouts by default, if set to false, only the not deleted ones are returned
+    Map<String, dynamic> helper = {};
+    if (allWorkouts) {
+      this.allWorkouts.forEach((key, value) {
+        helper.putIfAbsent(key, () => value.toJson());
+      });
+    } else {
+      this.workouts.forEach((key, value) {
+        helper.putIfAbsent(key, () => value.toJson());
+      });
+    }
+
+    return (helper);
+  }
+
   @override
   String toString() {
     // returns a list with names consistent with database (e.g. id instead of workoutId)
     // includes deleted workouts!
-
-    // Map<String, Workout> notDeletedWorkouts;
-    // workouts.forEach((key, value) {
-    //   if (value._notDeleted) {
-    //     notDeletedWorkouts[key] = value;
-    //   }
-    // });
-    // String str = json.encode(notDeletedWorkouts);
-    String str = json.encode(_workouts);
-    print("Workouts string:\\" + str);
-    return (str);
+    return (json.encode(this.workoutsToJson()));
   }
 
   void fromString(String str) {
@@ -310,15 +453,16 @@ class Workouts with ChangeNotifier {
 
   void fromJson(Map<String, dynamic> parsedJson) {
     parsedJson.forEach((key, value) {
-      print(key);
-      print(value);
-      _workouts.putIfAbsent(value["id"], () => Workout.fromJson(value));
+      this.addWorkout(Workout.fromJson(value));
     });
   }
 
   void addWorkout(Workout wo) {
     //upload with future.then(set _uploaded=true)
     // add to workouts
+    wo.actions.forEach((key, action) {
+      this.addExercise(action.exercise);
+    });
     if (_workouts.containsKey(wo.localId) ||
         _workouts.containsKey(wo.workoutId)) {
       // update existing workout
@@ -365,39 +509,56 @@ class Workouts with ChangeNotifier {
 
   Future<bool> syncronize() async {
     // tries to upload all not uploaded workouts and updates the Ids, then saves to shared_preferences
-    Map<String, Workout> offlineWorkouts;
+    Map<String, Workout> offlineWorkouts = {};
     _workouts.forEach((key, value) {
       if (!value.isUploaded) {
         offlineWorkouts.putIfAbsent(key, () => value);
       }
     });
-    if (offlineWorkouts.length == 0) {
+    if (offlineWorkouts == null || offlineWorkouts.length == 0) {
+      // print("offlineworkouts are null or 0");
       return (true);
     }
-    final response = await http.post(uri,
+    Uri url = Uri.http(
+      "api.kantnprojekt.club",
+      "/v0_1/workouts",
+    );
+    final response = await http.post(url,
         headers: {
           "token": _token,
-          "user_id": _userId,
+          'Content-Type': 'application/json; charset=UTF-8',
+          // "user_id": _userId,
         },
-        body: json.encode(offlineWorkouts));
-    final result =
-        json.decode(response.body) as Map<String, String>; //localId:workoutId
-    print(response.statusCode);
+        body: jsonEncode(this.workoutsToJson()));
+    final result2 =
+        json.decode(response.body) as Map<String, dynamic>; //localId:workoutId
+    Map<String, dynamic> result = result2["data"];
     if (response.statusCode == 201) {
       result.forEach((_localId, _workoutId) {
+        _workouts.forEach((key, value) {
+          print("workout id: " + key);
+        });
+        print("local id: $_localId workoutId: $_workoutId");
+        //TODO: check if workoutId == localId, in this case nothing needs to be changed
         if (_workoutId != null) {
-          Workout wo = _workouts[_localId];
-          wo.workoutId = _workoutId;
-          wo._uploaded = true;
-          wo.actions.forEach((key, ac) {
-            ac.workoutId = _workoutId;
-          });
-          _workouts.removeWhere((key, value) => value.localId == key);
-          _workouts[_workoutId] = wo;
+          Workout wo = _workouts[_localId.toString()];
+          if (wo == null) {
+            print("Something happened.");
+            print(this.toString());
+          } else {
+            wo.workoutId = _workoutId.toString();
+            wo.localId = _workoutId.toString();
+            wo._uploaded = true;
+            wo.actions.forEach((key, ac) {
+              ac.workoutId = _workoutId;
+            });
+            _workouts.removeWhere((key, value) => key == _localId.toString());
+            _workouts[_workoutId] = wo;
+          }
         }
       });
     } else {
-      print("Couldn't sync workouts.");
+      print("Couldn't sync workouts. " + result2["message"].toString());
       return (false);
     }
     this.save();
@@ -409,7 +570,7 @@ class Workouts with ChangeNotifier {
       {bool onlyBeforeDayInWeek: true}) {
     // calculates for each exercise the number how often it was performed in a given week (optionally: before the given date)
     int weeknr = weekNumber(dayInWeek);
-    Map<String, int> number;
+    Map<String, int> number = {};
     _workouts.forEach((key, value) {
       if (weekNumber(value.date) == weeknr &&
           (!onlyBeforeDayInWeek || value.date.isBefore(dayInWeek))) {
@@ -423,8 +584,8 @@ class Workouts with ChangeNotifier {
 
   Map<String, String> dailySummary(int daysAgo) {
     // Map<String, Workout> workoutsDay;
-    Map<String, dynamic> summary;
-    Map<String, double> pointsPerExercise; //to check for max_per_day
+    Map<String, dynamic> summary = {};
+    Map<String, double> pointsPerExercise = {}; //to check for max_per_day
     double points = 0;
     int noWorkouts = 0;
     int noActions = 0;
@@ -467,6 +628,48 @@ class Workouts with ChangeNotifier {
     summary["noWorkouts"] = noWorkouts;
 
     return (summary);
+  }
+
+  void addExercise(Exercise ex) {
+    // if an exercise with the same id is found, then it is just updated.
+    // Only the note of the exercise can change! Otherwise it is needed to create a new Exercise.
+    if (_exercises.containsKey(ex.localId) ||
+        _exercises.containsKey(ex.exerciseId)) {
+      // update existing workout
+      Exercise oldEx;
+      if (_exercises.containsKey(ex.localId)) {
+        oldEx = _exercises[ex.localId];
+      } else {
+        oldEx = _exercises[ex.exerciseId];
+      }
+      if (oldEx.note != ex.note) {
+        oldEx.note = ex.note;
+        this.syncronize();
+        notifyListeners();
+      } else {
+        print("Tried to add existing Exercise with the same note.");
+      }
+    } else {
+      print("Added new exercise to internal list: " + ex.title);
+      _exercises[ex.localId] = ex;
+      this.syncronize();
+      notifyListeners();
+    }
+  }
+
+  void deleteExercise(String id) {
+    Exercise ex = _exercises[id];
+    ex.setNotDeleted = false;
+    ex.setUploaded = false;
+    // _exercises.removeWhere(
+    //     (key, value) => value.exerciseId == id || value.localId == id);
+    notifyListeners();
+    this.syncronize();
+  }
+
+  String exercisesToString() {
+    String str = json.encode(_exercises);
+    return (str);
   }
 
   // Todo:

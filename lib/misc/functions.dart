@@ -10,6 +10,10 @@ String getRandomString(int length) => String.fromCharCodes(Iterable.generate(
     length, (_) => _chars.codeUnitAt(_rnd.nextInt(_chars.length))));
 
 DateTime calcMaxDate(List<DateTime> dates) {
+  if (dates == null || dates.length == 0) {
+    //
+    return (DateTime.parse("2020-01-01"));
+  }
   DateTime maxDate = dates[0];
   dates.forEach((date) {
     if (date.isAfter(maxDate)) {

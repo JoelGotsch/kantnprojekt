@@ -194,8 +194,8 @@ class _AuthCardState extends State<AuthCard> {
               children: <Widget>[
                 if (_authMode == AuthMode.Signup)
                   TextFormField(
-                    decoration: InputDecoration(labelText: 'E-Mail'),
-                    keyboardType: TextInputType.emailAddress,
+                    decoration: InputDecoration(labelText: 'Username'),
+                    keyboardType: TextInputType.name,
                     //   validator: (value) {
                     //   if (value.isEmpty || !value.contains('@')) {
                     //     return 'Invalid email!';
@@ -209,6 +209,7 @@ class _AuthCardState extends State<AuthCard> {
                 TextFormField(
                   decoration: InputDecoration(labelText: 'E-Mail'),
                   keyboardType: TextInputType.emailAddress,
+                  textCapitalization: TextCapitalization.none,
                   validator: (value) {
                     if (value.isEmpty || !value.contains('@')) {
                       return 'Invalid email!';
@@ -216,7 +217,7 @@ class _AuthCardState extends State<AuthCard> {
                     return null;
                   },
                   onSaved: (value) {
-                    _authData['email'] = value;
+                    _authData['email'] = value.trim();
                   },
                 ),
                 TextFormField(

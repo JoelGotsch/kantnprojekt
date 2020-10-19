@@ -1,20 +1,69 @@
 import 'package:flutter/material.dart';
-// import 'package:firebase_auth/firebase_auth.dart';
-import 'theme/routes.dart';
-import 'views/opening_screen.dart';
+// import 'package:kantnprojekt/providers/exercises.dart';
+import 'package:provider/provider.dart';
+import 'providers/user.dart';
+
+import 'providers/workouts.dart';
+import 'views/auth_screen.dart';
+import 'views/splash_screen.dart';
+import 'views/workouts_overview_screen.dart';
+import 'views/edit_workout.dart';
 
 void main() {
   runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Opening View Demo',
-      routes: AppRoutes.define(),
-      home: OpeningView(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (_) => User(),
+        ),
+        // ChangeNotifierProvider(
+        //   create: (_) => Cart(),
+        // ),
+        // ChangeNotifierProxyProvider<User, Exercises>(
+        //   create: null,
+        //   update: (ctx, auth, previousExercises) => Exercises(
+        //     auth.token,
+        //     auth.userId,
+        //     previousExercises == null ? [] : previousExercises.allExercises,
+        //   ),
+        // ),
+        ChangeNotifierProxyProvider<User, Workouts>(
+          create: null,
+          update: (ctx, user, previousWorkouts) => Workouts(
+            user.token,
+            previousWorkouts == null ? {} : previousWorkouts.allWorkouts,
+            previousWorkouts == null ? {} : previousWorkouts.allExercises,
+          ),
+        ),
+      ],
+      child: Consumer<User>(
+        builder: (ctx, user, _) => MaterialApp(
+          title: 'Kantnprojekt',
+          theme: ThemeData(
+            primarySwatch: Colors.blue,
+            // accentColor: Colors.deepOrange,
+            // fontFamily: 'Lato',
+          ),
+          home: user.isAuth
+              ? WorkoutsOverviewScreen()
+              : FutureBuilder(
+                  future: user.tryAutoLogin(),
+                  builder: (ctx, authResultSnapshot) =>
+                      authResultSnapshot.connectionState ==
+                              ConnectionState.waiting
+                          ? SplashScreen()
+                          : AuthScreen(),
+                ),
+          routes: {
+            EditWorkoutScreen.routeName: (ctx) => EditWorkoutScreen(),
+          },
+        ),
+      ),
     );
   }
 }
