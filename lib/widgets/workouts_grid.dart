@@ -9,19 +9,13 @@ class WorkoutsGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final workoutsData = Provider.of<Workouts>(context);
     final Map<String, Workout> workouts = workoutsData.workouts;
-    return GridView.builder(
+    return ListView.builder(
       padding: const EdgeInsets.all(7.0),
       itemCount: workouts.length,
       itemBuilder: (ctx, i) => ChangeNotifierProvider.value(
         // builder: (c) => products[i],
         value: workouts.values.toList()[i],
         child: WorkoutItem(),
-      ),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 3 / 2,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
       ),
     );
   }

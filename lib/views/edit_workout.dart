@@ -115,12 +115,12 @@ class _EditWorkoutScreenState extends State<EditWorkoutScreen> {
 
   Future<void> _addAction() async {
     final isValid = _formActions.currentState.validate();
-    if (!isValid || _chosenExercise != null || _newAction.number == 0) {
+    _formActions.currentState.save();
+    if (!isValid || _chosenExercise == null || _newAction.number == 0) {
       return;
     }
     _newAction.exerciseId = _chosenExercise.exerciseId;
     _newAction.exercise = _chosenExercise;
-    _formActions.currentState.save();
     setState(() {
       _isLoading = true;
     });

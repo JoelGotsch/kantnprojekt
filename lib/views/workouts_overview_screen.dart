@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/workouts.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/workouts_grid.dart';
+import 'edit_workout.dart';
 
 class WorkoutsOverviewScreen extends StatefulWidget {
   @override
@@ -42,33 +43,43 @@ class _WorkoutsOverviewScreenState extends State<WorkoutsOverviewScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      //   appBar: AppBar(
-      //     title: Text('MyShop'),
-      //     actions: <Widget>[
-      //       Consumer<Workouts>(
-      //         builder: (_, workout, ch) => Badge(
-      //           child: ch,
-      //           value: workout.itemCount.toString(),
-      //         ),
-      //         child: IconButton(
-      //           icon: Icon(
-      //             Icons.edit,
-      //           ),
-      //           onPressed: () {
-      //             Navigator.of(context).pushNamed(EditWorkoutScreen.routeName);
-      //           },
-      //         ),
-      //       ),
-      //     ],
-      //   ),
-      drawer: AppDrawer(),
-      body: _isLoading
-          ? Center(
-              child: CircularProgressIndicator(),
-            )
-          : WorkoutsGrid(),
-      // bottomNavigationBar: ,
-    );
+        //   appBar: AppBar(
+        //     title: Text('MyShop'),
+        //     actions: <Widget>[
+        //       Consumer<Workouts>(
+        //         builder: (_, workout, ch) => Badge(
+        //           child: ch,
+        //           value: workout.itemCount.toString(),
+        //         ),
+        //         child: IconButton(
+        //           icon: Icon(
+        //             Icons.edit,
+        //           ),
+        //           onPressed: () {
+        //             Navigator.of(context).pushNamed(EditWorkoutScreen.routeName);
+        //           },
+        //         ),
+        //       ),
+        //     ],
+        //   ),
+        drawer: AppDrawer(),
+        body: _isLoading
+            ? Center(
+                child: CircularProgressIndicator(),
+              )
+            : WorkoutsGrid(),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () {
+            Navigator.of(context).pushNamed(
+              EditWorkoutScreen.routeName,
+              arguments: null,
+            );
+          },
+          backgroundColor: Colors.redAccent,
+          foregroundColor: Colors.white70,
+          icon: Icon(Icons.add),
+          label: Text("New Workout"),
+        ));
   }
 }
 
