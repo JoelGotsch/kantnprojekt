@@ -6,9 +6,9 @@ import 'package:flutter_datetime_picker/flutter_datetime_picker.dart';
 import 'package:flutter/services.dart'; // for FilteringTextInputFormatter
 import 'package:dropdown_search/dropdown_search.dart'; // for dropdown of exerc.
 
-import '../providers/workouts.dart' as wo;
+import '../providers/workout.dart' as wo;
+import '../providers/workouts.dart' as wos;
 import '../providers/exercises.dart' as ex;
-import '../misc/functions.dart' as funcs;
 
 class EditWorkoutScreen extends StatefulWidget {
   static const routeName = '/edit-workout';
@@ -47,7 +47,7 @@ class _EditWorkoutScreenState extends State<EditWorkoutScreen> {
       final workoutId = ModalRoute.of(context).settings.arguments as String;
       print("workoutId in didChangeDeps: $workoutId");
       if (workoutId != null) {
-        _editedWorkout = Provider.of<wo.Workouts>(context, listen: false)
+        _editedWorkout = Provider.of<wos.Workouts>(context, listen: false)
             .byId(workoutId)
             .copy();
         print(_editedWorkout.localId);
@@ -58,7 +58,7 @@ class _EditWorkoutScreenState extends State<EditWorkoutScreen> {
       }
       try {
         _allExercises =
-            Provider.of<wo.Workouts>(context, listen: false).exercises;
+            Provider.of<wos.Workouts>(context, listen: false).exercises;
       } catch (e) {
         print("Couldn't load exercises in edit-workouts. " + e.toString());
       }
@@ -76,7 +76,7 @@ class _EditWorkoutScreenState extends State<EditWorkoutScreen> {
   }
 
   Future<void> _saveForm() async {
-    Provider.of<wo.Workouts>(context, listen: false).save();
+    Provider.of<wos.Workouts>(context, listen: false).save();
     final isValid = _form.currentState.validate();
     if (!isValid) {
       return;
@@ -87,7 +87,7 @@ class _EditWorkoutScreenState extends State<EditWorkoutScreen> {
     });
     try {
       _editedWorkout.userId = Provider.of<User>(context, listen: false).userId;
-      Provider.of<wo.Workouts>(context, listen: false)
+      Provider.of<wos.Workouts>(context, listen: false)
           .addWorkout(_editedWorkout);
     } catch (error) {
       await showDialog(
@@ -173,7 +173,7 @@ class _EditWorkoutScreenState extends State<EditWorkoutScreen> {
                   children: <Widget>[
                     Container(
                       height: 150,
-                      width: 1000,
+                      width: double.infinity,
                       child: Form(
                         key: _form,
                         child: Column(
@@ -194,14 +194,14 @@ class _EditWorkoutScreenState extends State<EditWorkoutScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
-                                Text(DateFormat('EEE, dd-MM-yyyy hh:mm')
+                                Text(DateFormat('EEE, dd-MM-yyyy HH:mm')
                                     .format(_editedWorkout.date)),
                                 RaisedButton(
                                     onPressed: () {
                                       DatePicker.showDateTimePicker(context,
                                           currentTime: _editedWorkout.date,
                                           showTitleActions: true,
-                                          minTime: DateTime(2018, 3, 5),
+                                          minTime: DateTime(2020, 1, 1),
                                           maxTime: DateTime.now(),
                                           onChanged: (date) {},
                                           onConfirm: (date) {
@@ -272,48 +272,49 @@ class _EditWorkoutScreenState extends State<EditWorkoutScreen> {
                       ),
                     ),
                     Container(
-                        height: 400,
-                        child: ListView.builder(
-                            itemCount: _editedWorkout.actions.length,
-                            itemBuilder: (context, i) {
-                              wo.Action action =
-                                  _editedWorkout.actions.values.toList()[i];
-                              return (Dismissible(
-                                key: ValueKey(action.actionId),
-                                direction: DismissDirection.endToStart,
-                                background: Container(
-                                  alignment: Alignment.centerRight,
-                                  padding: EdgeInsets.only(right: 20),
-                                  color: Theme.of(context).errorColor,
-                                  child: Icon(
-                                    Icons.delete,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
+                      height: 400,
+                      child: ListView.builder(
+                          itemCount: _editedWorkout.actions.length,
+                          itemBuilder: (context, i) {
+                            wo.Action action =
+                                _editedWorkout.actions.values.toList()[i];
+                            return (Dismissible(
+                              key: ValueKey(action.actionId),
+                              direction: DismissDirection.endToStart,
+                              background: Container(
+                                alignment: Alignment.centerRight,
+                                padding: EdgeInsets.only(right: 20),
+                                color: Theme.of(context).errorColor,
+                                child: Icon(
+                                  Icons.delete,
+                                  color: Colors.white,
+                                  size: 20,
                                 ),
-                                onDismissed: (direction) {
-                                  _editedWorkout.deleteAction(action.actionId);
-                                },
-                                child: Card(
-                                  margin: EdgeInsets.all(5),
-                                  child: Container(
-                                    // height: 30,
-                                    margin: EdgeInsets.all(10),
-                                    child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: <Widget>[
-                                          Text(
-                                              "${action.number} ${action.exercise.unit} ${action.exercise.title}"),
-                                          Text("${action.points} points")
-                                        ]),
+                              ),
+                              onDismissed: (direction) {
+                                _editedWorkout.deleteAction(action.actionId);
+                              },
+                              child: Card(
+                                margin: EdgeInsets.all(5),
+                                child: Container(
+                                  // height: 30,
+                                  margin: EdgeInsets.all(10),
+                                  child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: <Widget>[
+                                        Text(
+                                            "${action.number} ${action.exercise.unit} ${action.exercise.title}"),
+                                        Text("${action.points} points")
+                                      ]),
 
-                                    alignment: Alignment.center,
-                                  ),
-                                  elevation: 5,
+                                  alignment: Alignment.center,
                                 ),
-                              ));
-                            })),
+                                elevation: 5,
+                              ),
+                            ));
+                          }),
+                    ),
                   ],
                 ),
               ));

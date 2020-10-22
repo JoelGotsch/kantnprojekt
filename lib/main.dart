@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 // import 'package:kantnprojekt/providers/exercises.dart';
 import 'package:provider/provider.dart';
 import 'providers/user.dart';
+import 'misc/color_definition.dart';
 
 import 'providers/workouts.dart';
 import 'views/auth_screen.dart';
@@ -44,8 +45,10 @@ class MyApp extends StatelessWidget {
       child: Consumer<User>(
         builder: (ctx, user, _) => MaterialApp(
           title: 'Kantnprojekt',
+          debugShowCheckedModeBanner: false,
           theme: ThemeData(
-            primarySwatch: Colors.blue,
+            primarySwatch:
+                generateMaterialColor(Color.fromRGBO(124, 222, 27, 1)),
             // accentColor: Colors.deepOrange,
             // fontFamily: 'Lato',
           ),
@@ -61,6 +64,7 @@ class MyApp extends StatelessWidget {
                 ),
           routes: {
             EditWorkoutScreen.routeName: (ctx) => EditWorkoutScreen(),
+            WorkoutsOverviewScreen.routeName: (ctx) => WorkoutsOverviewScreen(),
           },
         ),
       ),

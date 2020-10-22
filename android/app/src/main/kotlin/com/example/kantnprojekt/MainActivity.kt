@@ -1,4 +1,4 @@
-package com.example.kantnprojekt
+package com.kantnprojekt.club
 
 import io.flutter.embedding.android.FlutterActivity
 

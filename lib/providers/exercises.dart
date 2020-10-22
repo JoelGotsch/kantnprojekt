@@ -100,6 +100,21 @@ class Exercise {
       'not_deleted': _notDeleted,
     });
   }
+
+  bool equals(Exercise ex) {
+    // returns true if everything, including the ids match
+    return (exerciseId == ex.exerciseId &&
+        localId == ex.localId &&
+        title == ex.title &&
+        note == ex.note &&
+        unit == ex.unit &&
+        userId == ex.userId &&
+        points == ex.points &&
+        maxPointsDay == ex.maxPointsDay &&
+        weeklyAllowance == ex.weeklyAllowance &&
+        _uploaded == ex._uploaded &&
+        _notDeleted == ex._notDeleted);
+  }
 }
 
 // class Exercises with ChangeNotifier {

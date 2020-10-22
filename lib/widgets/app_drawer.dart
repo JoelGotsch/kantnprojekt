@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../views/workouts_overview_screen.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 // import '../screens/user_products_screen.dart';
 import '../providers/user.dart';
 
@@ -17,30 +18,13 @@ class AppDrawer extends StatelessWidget {
           ),
           Divider(),
           ListTile(
-            leading: Icon(Icons.shop),
+            leading: FaIcon(FontAwesomeIcons.running),
             title: Text('Workouts'),
             onTap: () {
-              Navigator.of(context).pushReplacementNamed('/');
+              Navigator.of(context)
+                  .pushReplacementNamed(WorkoutsOverviewScreen.routeName);
             },
           ),
-          // Divider(),
-          // ListTile(
-          //   leading: Icon(Icons.payment),
-          //   title: Text('Exercises'),
-          //   onTap: () {
-          //     Navigator.of(context)
-          //         .pushReplacementNamed(ExercisesScreen.routeName);
-          //   },
-          // ),
-          // Divider(),
-          // ListTile(
-          //   leading: Icon(Icons.edit),
-          //   title: Text('Challenges'),
-          //   onTap: () {
-          //     Navigator.of(context)
-          //         .pushReplacementNamed(UserProductsScreen.routeName);
-          //   },
-          // ),
           Divider(),
           ListTile(
             leading: Icon(Icons.exit_to_app),
