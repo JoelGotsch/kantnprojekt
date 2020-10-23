@@ -173,10 +173,10 @@ class Workout with ChangeNotifier {
     wo.latestEdit = DateTime.parse(parsedJson['latest_edit']);
     if (parsedJson['uploaded'] != null) {
       // from phone storage
-      wo._uploaded = parsedJson['uploaded'];
+      wo.isUploaded = parsedJson['uploaded'];
     } else {
       // from api, no "uploaded" field is provided
-      wo._uploaded = true;
+      wo.isUploaded = true;
     }
     if (parsedJson['not_deleted'] != null) {
       // from phone storage
@@ -226,7 +226,7 @@ class Workout with ChangeNotifier {
       'points': points,
       'actions': helper,
       'not_deleted': _notDeleted,
-      // 'uploaded': _uploaded,
+      'uploaded': _uploaded,
     });
   }
 
@@ -257,6 +257,7 @@ class Workout with ChangeNotifier {
 
   void setDate(DateTime newDate) {
     this.date = newDate;
+    _uploaded = false;
     notifyListeners();
   }
 

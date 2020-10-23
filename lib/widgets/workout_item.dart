@@ -24,16 +24,11 @@ class WorkoutItem extends StatefulWidget {
 class _WorkoutItemState extends State<WorkoutItem> {
   var _expanded = false;
   var _isInit = true;
-  var _isLoading = false;
   final _noteFocusNode = FocusNode();
   final _numberFocusNode = FocusNode();
-  final _form = GlobalKey<FormState>();
+  // final _form = GlobalKey<FormState>(); // Used for note?
   final _formActions = GlobalKey<FormState>();
-  // double totalHeight = 150;
   wo.Workout workout;
-  // wo.Workout _editedWorkout = wo.Workout.newWithUserId("");
-  //TODO: Exercises as part of Workouts, created dynamically, no API needed.
-  //this.exerciseId, this.workoutId, this.number, this.note, this.exercise:
   wo.Action _newAction = wo.Action("", "", 0, "", null);
   Map<String, ex.Exercise> _allExercises = {};
   ex.Exercise _chosenExercise;
@@ -42,7 +37,7 @@ class _WorkoutItemState extends State<WorkoutItem> {
   void didChangeDependencies() {
     // _editedWorkout = Provider.of<wo.Workout>(context, listen: false);
     if (_isInit) {
-      workout = Provider.of<wo.Workout>(context);
+      workout = Provider.of<wo.Workout>(context, listen: false);
       // final workoutId = ModalRoute.of(context).settings.arguments as String;
       // print("workoutId in didChangeDeps: $workoutId");
       // if (workoutId != null) {
@@ -87,11 +82,11 @@ class _WorkoutItemState extends State<WorkoutItem> {
     }
     _newAction.exerciseId = _chosenExercise.exerciseId;
     _newAction.exercise = _chosenExercise;
-    setState(() {
-      _isLoading = true;
-    });
+    _newAction.workoutId =
+        Provider.of<wo.Workout>(context, listen: false).workoutId;
     try {
-      workout.addAction(_newAction);
+      Provider.of<wos.Workouts>(context, listen: false).addAction(_newAction);
+      // workout.addAction(_newAction);
       _newAction = wo.Action("", "", 0, "", null);
       _chosenExercise = null;
     } catch (error) {
@@ -111,9 +106,6 @@ class _WorkoutItemState extends State<WorkoutItem> {
         ),
       );
     }
-    setState(() {
-      _isLoading = false;
-    });
     // Navigator.of(context).pop();
   }
 
@@ -299,7 +291,8 @@ class _WorkoutItemState extends State<WorkoutItem> {
                               ),
                             ),
                             onDismissed: (direction) {
-                              workout.deleteAction(action.actionId);
+                              Provider.of<wos.Workouts>(context, listen: false)
+                                  .deleteAction(action);
                             },
                             child: Card(
                               margin: EdgeInsets.all(5),

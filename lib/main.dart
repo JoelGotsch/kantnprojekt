@@ -8,7 +8,6 @@ import 'providers/workouts.dart';
 import 'views/auth_screen.dart';
 import 'views/splash_screen.dart';
 import 'views/workouts_overview_screen.dart';
-import 'views/edit_workout.dart';
 
 void main() {
   runApp(MyApp());
@@ -63,7 +62,6 @@ class MyApp extends StatelessWidget {
                           : AuthScreen(),
                 ),
           routes: {
-            EditWorkoutScreen.routeName: (ctx) => EditWorkoutScreen(),
             WorkoutsOverviewScreen.routeName: (ctx) => WorkoutsOverviewScreen(),
           },
         ),
