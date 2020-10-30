@@ -12,16 +12,14 @@ class Action {
   String actionId = getRandomString(20);
   String exerciseId;
   String workoutId;
-  int number;
+  double number;
   String note;
   // double points;
   Exercise exercise;
 
-  Action(
-      this.exerciseId, this.workoutId, this.number, this.note, this.exercise);
+  Action(this.exerciseId, this.workoutId, this.number, this.note, this.exercise);
 
-  factory Action.fromJson(Map<String, dynamic> parsedJson, workoutId,
-      {Exercise exercise}) {
+  factory Action.fromJson(Map<String, dynamic> parsedJson, workoutId, {Exercise exercise}) {
     Exercise ex;
     // Exercises exs = Exercises();
     // exs.init();
@@ -40,12 +38,12 @@ class Action {
     Action ac = Action(
       parsedJson['exercise_id'],
       workoutId,
-      parsedJson['number'],
+      double.parse(parsedJson['number'].toString()),
       parsedJson['note'],
       ex,
     );
-    if (parsedJson['actionId'] != null) {
-      ac.actionId = parsedJson['actionId'];
+    if (parsedJson['id'] != null) {
+      ac.actionId = parsedJson['id'];
       // } else {
       //   ac.actionId = getRandomString(20);
     }
@@ -147,12 +145,7 @@ class Workout with ChangeNotifier {
   // }
 
   factory Workout.newWithUserId(userId) {
-    return (Workout(
-        workoutId: null,
-        localId: getRandomString(20),
-        userId: userId,
-        date: DateTime.now(),
-        note: ""));
+    return (Workout(workoutId: null, localId: getRandomString(30), userId: userId, date: DateTime.now(), note: ""));
   }
 
   factory Workout.fromJson(Map<String, dynamic> parsedJson) {
@@ -184,8 +177,7 @@ class Workout with ChangeNotifier {
     }
     // add exercises
     (parsedJson['actions'] as Map<String, dynamic>).forEach((key, value) {
-      wo.addAction(
-          Action.fromJson(value as Map<String, dynamic>, wo.workoutId));
+      wo.addAction(Action.fromJson(value as Map<String, dynamic>, wo.workoutId));
     });
     return (wo);
   }
@@ -199,12 +191,7 @@ class Workout with ChangeNotifier {
   }
 
   Workout copy() {
-    Workout wo = Workout(
-        date: this.date,
-        localId: this.localId,
-        note: this.note,
-        userId: this.userId,
-        workoutId: this.workoutId);
+    Workout wo = Workout(date: this.date, localId: this.localId, note: this.note, userId: this.userId, workoutId: this.workoutId);
     wo.actions = this.actions;
     wo.latestEdit = this.latestEdit;
     return (wo);

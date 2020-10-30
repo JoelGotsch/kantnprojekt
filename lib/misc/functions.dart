@@ -6,8 +6,7 @@ import 'package:intl/intl.dart';
 const _chars = 'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890';
 Random _rnd = Random();
 
-String getRandomString(int length) => String.fromCharCodes(Iterable.generate(
-    length, (_) => _chars.codeUnitAt(_rnd.nextInt(_chars.length))));
+String getRandomString(int length) => String.fromCharCodes(Iterable.generate(length, (_) => _chars.codeUnitAt(_rnd.nextInt(_chars.length))));
 
 DateTime calcMaxDate(List<DateTime> dates) {
   if (dates == null || dates.length == 0) {
@@ -29,13 +28,20 @@ String generateMd5(String input) {
 
 extension dateOnlyCompare on DateTime {
   bool isSameDate(DateTime other) {
-    return this.year == other.year &&
-        this.month == other.month &&
-        this.day == other.day;
+    return this.year == other.year && this.month == other.month && this.day == other.day;
   }
 }
 
-int weekNumber(DateTime date) {
+int weekYearNumber(DateTime date) {
+  // returns 202001 for each day in the first week of 2020, which is defined as the first week with a Wednesday in 2020 (ISOxyz).
   int dayOfYear = int.parse(DateFormat("D").format(date));
-  return ((dayOfYear - date.weekday + 10) / 7).floor();
+  int weekNr = ((dayOfYear - date.weekday + 10) / 7).floor();
+  int yearWeek = date.year * 100 + weekNr;
+  return yearWeek;
+}
+
+int dayWeekYearNumber(DateTime date) {
+  // returns 20200101 for each day in the first Monday in first week of 2020, which is defined as the first week with a Wednesday in 2020 (ISOxyz).
+  int yearWeek = weekYearNumber(date);
+  return yearWeek * 100 + date.weekday;
 }

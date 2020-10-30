@@ -10,6 +10,7 @@ import 'package:flutter_datetime_picker/flutter_datetime_picker.dart';
 import '../providers/workout.dart' as wo;
 import '../providers/workouts.dart' as wos;
 import '../providers/exercises.dart' as ex;
+import '../misc/decimalInputFormatter.dart';
 // import '../views/edit_workout.dart';
 
 class WorkoutItem extends StatefulWidget {
@@ -51,8 +52,7 @@ class _WorkoutItemState extends State<WorkoutItem> {
       //   // };
       // }
       try {
-        _allExercises =
-            Provider.of<wos.Workouts>(context, listen: false).exercises;
+        _allExercises = Provider.of<wos.Workouts>(context, listen: false).exercises;
       } catch (e) {
         print("Couldn't load exercises in edit-workouts. " + e.toString());
       }
@@ -82,8 +82,7 @@ class _WorkoutItemState extends State<WorkoutItem> {
     }
     _newAction.exerciseId = _chosenExercise.exerciseId;
     _newAction.exercise = _chosenExercise;
-    _newAction.workoutId =
-        Provider.of<wo.Workout>(context, listen: false).workoutId;
+    _newAction.workoutId = Provider.of<wo.Workout>(context, listen: false).localId;
     try {
       Provider.of<wos.Workouts>(context, listen: false).addAction(_newAction);
       // workout.addAction(_newAction);
@@ -130,8 +129,7 @@ class _WorkoutItemState extends State<WorkoutItem> {
           ),
         ),
         onDismissed: (direction) {
-          Provider.of<wos.Workouts>(context, listen: false)
-              .deleteWorkout(workout.localId);
+          Provider.of<wos.Workouts>(context, listen: false).deleteWorkout(workout.localId);
         },
         child: Column(children: <Widget>[
           GestureDetector(
@@ -160,8 +158,7 @@ class _WorkoutItemState extends State<WorkoutItem> {
                         width: 7,
                       ),
                       Text(
-                        DateFormat('EEE, dd-MM-yyyy HH:mm')
-                            .format(workout.date),
+                        DateFormat('EEE, dd-MM-yyyy HH:mm').format(workout.date),
                       ),
                     ],
                   ),
@@ -209,12 +206,9 @@ class _WorkoutItemState extends State<WorkoutItem> {
                                 label: "Exercise",
                                 showSearchBox: true,
                                 // showSelectedItem: true,
-                                selectedItem: _chosenExercise != null
-                                    ? _chosenExercise
-                                    : null,
+                                selectedItem: _chosenExercise != null ? _chosenExercise : null,
                                 items: _allExercises.values.toList(),
-                                itemAsString: (ex.Exercise exercise) =>
-                                    exercise.title,
+                                itemAsString: (ex.Exercise exercise) => exercise.title,
                                 onChanged: (ex.Exercise exercise) {
                                   setState(() {
                                     _chosenExercise = exercise;
@@ -230,26 +224,22 @@ class _WorkoutItemState extends State<WorkoutItem> {
                               focusNode: _numberFocusNode,
                               validator: (value) {
                                 try {
-                                  var val = int.parse(value);
+                                  var val = double.parse(value);
                                 } catch (e) {
                                   return (e.toString());
                                 }
                                 return null;
                               },
                               onSaved: (value) {
-                                _newAction.number = int.parse(value);
+                                _newAction.number = double.parse(value);
                               },
-                              keyboardType: TextInputType.number,
-                              inputFormatters: <TextInputFormatter>[
-                                FilteringTextInputFormatter.digitsOnly
-                              ], // Only numbers can be entered
+                              keyboardType: TextInputType.numberWithOptions(decimal: true),
+                              inputFormatters: [DecimalTextInputFormatter(decimalRange: 2)], // Only numbers can be entered
                             ),
                           ),
                           Container(
                             width: MediaQuery.of(context).size.width * 0.1,
-                            child: Text(_chosenExercise == null
-                                ? ""
-                                : _chosenExercise.unit),
+                            child: Text(_chosenExercise == null ? "" : _chosenExercise.unit),
                           ),
                           Container(
                             width: MediaQuery.of(context).size.width * 0.2,
@@ -262,8 +252,7 @@ class _WorkoutItemState extends State<WorkoutItem> {
                               ),
                               child: Icon(
                                 Icons.add_circle,
-                                color: Colors
-                                    .white70, //Theme.of(context).accentColor,
+                                color: Colors.white70, //Theme.of(context).accentColor,
                               ),
                             ),
                           ),
@@ -291,22 +280,17 @@ class _WorkoutItemState extends State<WorkoutItem> {
                               ),
                             ),
                             onDismissed: (direction) {
-                              Provider.of<wos.Workouts>(context, listen: false)
-                                  .deleteAction(action);
+                              Provider.of<wos.Workouts>(context, listen: false).deleteAction(action);
                             },
                             child: Card(
                               margin: EdgeInsets.all(5),
                               child: Container(
                                 // height: 30,
                                 margin: EdgeInsets.all(10),
-                                child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: <Widget>[
-                                      Text(
-                                          "${action.number} ${action.exercise.unit} ${action.exercise.title}"),
-                                      Text("${action.points} points")
-                                    ]),
+                                child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: <Widget>[
+                                  Text("${action.number} ${action.exercise.unit} ${action.exercise.title}"),
+                                  Text("${action.points} points")
+                                ]),
 
                                 alignment: Alignment.center,
                               ),

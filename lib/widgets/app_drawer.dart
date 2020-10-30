@@ -9,20 +9,20 @@ import '../providers/user.dart';
 class AppDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final String userName = Provider.of<User>(context, listen: false).userName;
     return Drawer(
       child: Column(
         children: <Widget>[
           AppBar(
-            title: Text('Hello Friend!'),
-            automaticallyImplyLeading: false,
+            title: Text('Hello $userName!'),
+            // automaticallyImplyLeading: false,
           ),
           Divider(),
           ListTile(
             leading: FaIcon(FontAwesomeIcons.running),
             title: Text('Workouts'),
             onTap: () {
-              Navigator.of(context)
-                  .pushReplacementNamed(WorkoutsOverviewScreen.routeName);
+              Navigator.of(context).pushReplacementNamed(WorkoutsOverviewScreen.routeName);
             },
           ),
           Divider(),

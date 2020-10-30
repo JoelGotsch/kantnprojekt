@@ -35,6 +35,9 @@ dependencies:
   flutter_datetime_picker: ^1.4.0 # for datetime picker
   dropdown_search: ^0.4.4 # Dropdown for exercises in edit_workout
   font_awesome_flutter: ^8.10.0 # for cool icons (like running)
+  pull_to_refresh: ^1.6.2 # for refresh animation
+  # charts_flutter: ^0.9.0 # for the weekly overview statistics of workouts
+  syncfusion_flutter_charts: ^18.3.44 # the cooler charts
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
