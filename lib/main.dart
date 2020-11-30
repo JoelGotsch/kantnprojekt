@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
-// import 'package:kantnprojekt/providers/exercises.dart';
+import 'package:kantnprojekt/views/exercise_view.dart';
 import 'package:provider/provider.dart';
-import 'providers/user.dart';
-import 'misc/color_definition.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 
+import 'misc/color_definition.dart';
+
 import 'providers/workouts.dart';
+import 'providers/user.dart';
+import 'providers/exercises.dart';
+
 import 'views/auth_screen.dart';
 import 'views/splash_screen.dart';
 import 'views/workouts_overview_screen.dart';
+import 'views/exercise_view.dart';
 
 void main() {
   runApp(MyApp());
@@ -26,20 +30,15 @@ class MyApp extends StatelessWidget {
         // ChangeNotifierProvider(
         //   create: (_) => Exercises(),
         // ),
-        // ChangeNotifierProxyProvider<User, Exercises>(
-        //   create: null,
-        //   update: (ctx, auth, previousExercises) => Exercises(
-        //     auth.token,
-        //     auth.userId,
-        //     previousExercises == null ? [] : previousExercises.allExercises,
-        //   ),
-        // ),
-        ChangeNotifierProxyProvider<User, Workouts>(
-          create: null, // note: init can't be run here, since user is not accessible
-          update: (ctx, user, previousWorkouts) => Workouts(
-            user.token,
-            previousWorkouts == null ? {} : previousWorkouts.allWorkouts,
-            previousWorkouts == null ? {} : previousWorkouts.allExercises,
+        ChangeNotifierProxyProvider<User, Exercises>(
+          create: (_) => Exercises.create(),
+          update: (ctx, user, previousExercises) => Exercises.fromPrevious(user.token, previousExercises),
+        ),
+        ChangeNotifierProxyProvider<Exercises, Workouts>(
+          create: (_) => Workouts.create(), // note: init can't be run here, since user is not accessible
+          update: (ctx, exercises, previousWorkouts) => Workouts.fromPrevious(
+            exercises,
+            previousWorkouts,
           ),
         ),
       ],
@@ -78,6 +77,7 @@ class MyApp extends StatelessWidget {
                   ),
             routes: {
               WorkoutsOverviewScreen.routeName: (ctx) => WorkoutsOverviewScreen(),
+              ExercisesOverviewScreen.routeName: (ctx) => ExercisesOverviewScreen(),
             },
           ),
         ),

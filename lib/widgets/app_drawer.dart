@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:kantnprojekt/views/exercise_view.dart';
 import 'package:provider/provider.dart';
 
 import '../views/workouts_overview_screen.dart';
+import '../views/exercise_view.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 // import '../screens/user_products_screen.dart';
 import '../providers/user.dart';
@@ -23,6 +25,14 @@ class AppDrawer extends StatelessWidget {
             title: Text('Workouts'),
             onTap: () {
               Navigator.of(context).pushReplacementNamed(WorkoutsOverviewScreen.routeName);
+            },
+          ),
+          Divider(),
+          ListTile(
+            leading: Icon(Icons.settings),
+            title: Text("Exercises"),
+            onTap: () {
+              Navigator.of(context).pushReplacementNamed(ExercisesOverviewScreen.routeName);
             },
           ),
           Divider(),

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../misc/functions.dart';
 import '../providers/workout.dart';
+import '../misc/user_exercise.dart';
 
 class WorkoutOverview {
   double points;
@@ -22,6 +23,11 @@ class WorkoutOverview {
     String weekDayAbbrev = ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][date.weekday];
     return (WorkoutOverview(0.0, 0, 0, cleanDate, weekYearNumber(date), weekDayAbbrev, daysAgo));
   }
+
+  @override
+  String toString() {
+    return ("$weekDayAbbrev ${date.day}.${date.month}: $points points, $noActions actions");
+  }
 }
 
 class DailyStatus {
@@ -35,12 +41,27 @@ class DailyStatus {
 class WorkoutOverviews extends ChangeNotifier {
   Map<int, WorkoutOverview> workoutOverviews = {};
   Map<int, DailyStatus> dailyStatus = {};
+  final Map<String, UserExercise> userExercises;
+  Map<String, Map<String, double>> workoutPoints = {};
 
-  WorkoutOverviews();
+  WorkoutOverviews(this.userExercises);
 
-  factory WorkoutOverviews.calc(Map<String, Workout> workouts) {
-    WorkoutOverviews woOverview = WorkoutOverviews();
-    for (Workout workout in workouts.values) {
+  factory WorkoutOverviews.calc(Map<String, Workout> workouts, Map<String, UserExercise> userExercises) {
+    // sort workouts to add earliest workout first:
+    print("WorkoutOverviews is re-calculated..");
+    List mapKeys = workouts.keys.toList(growable: false);
+    mapKeys.sort((k1, k2) => workouts[k2].date.compareTo(workouts[k1].date));
+    List<Workout> sortedWorkouts = [];
+    mapKeys.forEach((k1) {
+      sortedWorkouts.insert(0, workouts[k1]);
+    });
+    Map<String, UserExercise> newUserExercises = {};
+    // because the actions in workouts refer to exercise ids and not user-exercise ids, we need to re-map here:
+    userExercises.forEach((key, usEx) {
+      newUserExercises.putIfAbsent(usEx.exercise.localId, () => usEx);
+    });
+    WorkoutOverviews woOverview = WorkoutOverviews(newUserExercises);
+    for (Workout workout in sortedWorkouts) {
       woOverview.addWorkout(workout);
     }
     return (woOverview);
@@ -53,7 +74,9 @@ class WorkoutOverviews extends ChangeNotifier {
     // if (daywynr == 20204405) {
     //   print("this is today!");
     // }
-
+    if (workoutPoints.containsKey(wo.localId)) {
+      print("Error: workout is added twice to workoutoverview!");
+    }
     if (workoutOverviews.containsKey(daywynr)) {
       ov = workoutOverviews[daywynr];
     } else {
@@ -61,19 +84,67 @@ class WorkoutOverviews extends ChangeNotifier {
     }
     ov.noWorkouts += 1;
     workoutOverviews[daywynr] = ov;
+    workoutPoints[wo.localId] = {};
     for (Action ac in wo.actions.values) {
+      //initializing, will be updated
+      workoutPoints[wo.localId][ac.actionId] = 0;
       this.addAction(ac, wo.date);
     }
   }
 
-  void addAction(Action action, DateTime date) {
+  bool setActionPoints(String actionId, double points) {
+    // goes through all workouts to find actionId and inserts points
+    workoutPoints.forEach((workoutId, actionList) {
+      if (actionList.containsKey(actionId)) {
+        actionList[actionId] = points;
+        return (true);
+      }
+    });
+    return (false);
+  }
+
+  double getActionPoints(String actionId) {
+    // goes through all workouts to find actionId and inserts points
+    workoutPoints.forEach((workoutId, actionList) {
+      if (actionList.containsKey(actionId)) {
+        return (actionList[actionId]);
+      }
+    });
+    print("ERROR: couldnt find action $actionId in workoutoverviews.");
+    return (.0);
+  }
+
+  double getWorkoutPoints(String workoutId) {
+    double points = 0;
+    if (workoutPoints.containsKey(workoutId)) {
+      workoutPoints[workoutId].forEach((key, value) {
+        points += value;
+      });
+    } else {
+      print("ERROR: couldnt find workout $workoutId in workoutoverviews.");
+      return (.0);
+    }
+    return (points);
+  }
+
+  bool addAction(Action action, DateTime date) {
     DailyStatus ds;
     WorkoutOverview ov;
     DateTime iterDate;
     int daywynr = dayWeekYearNumber(date);
     int wynr = weekYearNumber(date);
     int daynr = date.weekday;
-    // print(action.exercise.title);
+    UserExercise usEx;
+    double pointsBefore = 0;
+    double actionPoints;
+    if (userExercises.containsKey(action.exerciseId)) {
+      usEx = userExercises[action.exerciseId];
+    } else {
+      print("Error: couldn't find exerciseId ${action.exerciseId} in list of userExercises.");
+      return (false);
+      // throw ("Error: couldn't find exerciseId ${action.exerciseId} in list of userExercises.");
+    }
+    // print(usEx.title);
 
     if (dailyStatus.containsKey(daywynr)) {
       ds = dailyStatus[daywynr];
@@ -92,22 +163,26 @@ class WorkoutOverviews extends ChangeNotifier {
       ds.countExercisePerWeek[action.exerciseId] = action.number;
     }
     if (ds.pointsPerExercise.containsKey(action.exerciseId)) {
-      ds.pointsPerExercise[action.exerciseId] += action.number * action.exercise.points;
+      pointsBefore = ds.pointsPerExercise[action.exerciseId];
+      ds.pointsPerExercise[action.exerciseId] += action.number * usEx.points;
     } else {
-      ds.pointsPerExercise[action.exerciseId] = action.number * action.exercise.points;
+      ds.pointsPerExercise[action.exerciseId] = action.number * usEx.points;
     }
     // making sure that not more than the maximum points per day can be achieved
-    if (action.exercise.maxPointsDay > 0 && ds.pointsPerExercise[action.exerciseId] > action.exercise.maxPointsDay) {
-      ds.pointsPerExercise[action.exerciseId] = action.exercise.maxPointsDay;
+    if (usEx.maxPointsDay > 0 && ds.pointsPerExercise[action.exerciseId] > usEx.maxPointsDay) {
+      ds.pointsPerExercise[action.exerciseId] = usEx.maxPointsDay;
     }
-    if (action.exercise.weeklyAllowance > 0) {
-      ds.pointsPerExercise[action.exerciseId] = max(ds.countExercisePerWeek[action.exerciseId] - action.exercise.weeklyAllowance, 0) * action.exercise.points;
+    if (usEx.weeklyAllowance > 0) {
+      ds.pointsPerExercise[action.exerciseId] = max(ds.countExercisePerWeek[action.exerciseId] - usEx.weeklyAllowance, 0) * usEx.points;
     }
     ov.noActions += 1;
-    ov.points = 0;
-    ds.pointsPerExercise.forEach((key, value) {
-      ov.points += value;
-    });
+    actionPoints = ds.pointsPerExercise[action.exerciseId] - pointsBefore;
+    this.setActionPoints(action.actionId, actionPoints);
+    ov.points += actionPoints;
+    // ov.points = 0;
+    // ds.pointsPerExercise.forEach((key, value) {
+    //   ov.points += value;
+    // });
 
     dailyStatus[daywynr] = ds;
     workoutOverviews[daywynr] = ov;
@@ -132,8 +207,9 @@ class WorkoutOverviews extends ChangeNotifier {
       } else {
         ds.countExercisePerWeek[action.exerciseId] = action.number;
       }
-      if (action.exercise.weeklyAllowance > 0) {
-        ds.pointsPerExercise[action.exerciseId] = max(ds.countExercisePerWeek[action.exerciseId] - action.exercise.weeklyAllowance, 0) * action.exercise.points;
+      if (usEx.weeklyAllowance > 0) {
+        ds.pointsPerExercise[action.exerciseId] = max(ds.countExercisePerWeek[action.exerciseId] - usEx.weeklyAllowance, 0) * usEx.points;
+        // we dont need to change the action points in that case as the workouts are provided in a timeley ascending
         ov.points = 0;
         ds.pointsPerExercise.forEach((key, value) {
           ov.points += value;
@@ -144,10 +220,12 @@ class WorkoutOverviews extends ChangeNotifier {
       daynr += 1;
       iterDate = iterDate.add(Duration(days: 1));
     }
+    return (true);
   }
 
   List<WorkoutOverview> lastNDays(int noDays) {
     // first element of list is the noDays ago, last element is today
+    //=> length of return list = noDays + 1
     List<WorkoutOverview> returnList = [];
     int daywynr;
     DateTime today = DateTime.now();
@@ -168,7 +246,11 @@ class WorkoutOverviews extends ChangeNotifier {
   }
 
   double pointsLastNDays(int noDays) {
-    List<WorkoutOverview> lastn = this.lastNDays(noDays);
+    if (noDays < 1) {
+      print("Exception: pointsLastNDays: noDays = $noDays");
+      return (0);
+    }
+    List<WorkoutOverview> lastn = this.lastNDays(noDays - 1);
     double points = 0;
     lastn.forEach((element) {
       points += element.points;

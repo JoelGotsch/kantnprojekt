@@ -5,10 +5,14 @@ import 'package:pull_to_refresh/pull_to_refresh.dart';
 
 import '../providers/workout.dart' as wo;
 import '../providers/workouts.dart' as wos;
+import '../providers/exercises.dart';
 
 import '../widgets/app_drawer.dart';
 import '../widgets/weekly_view.dart';
 import '../widgets/workout_item.dart';
+
+import '../misc/user_exercise.dart';
+import '../misc/workouts_overview.dart';
 
 class WorkoutsOverviewScreen extends StatefulWidget {
   static const routeName = '/workouts';
@@ -17,7 +21,6 @@ class WorkoutsOverviewScreen extends StatefulWidget {
 }
 
 class _WorkoutsOverviewScreenState extends State<WorkoutsOverviewScreen> {
-  var _isInit = true;
   var _isLoading = false;
   RefreshController _refreshController = RefreshController(initialRefresh: false);
 
@@ -38,83 +41,73 @@ class _WorkoutsOverviewScreenState extends State<WorkoutsOverviewScreen> {
   }
 
   @override
-  void didChangeDependencies() {
-    if (_isInit) {
-      setState(() {
-        _isLoading = true;
-      });
-      if (Provider.of<wos.Workouts>(context, listen: false).workouts.length == 0) {
-        print("init workouts in didChangedependencies");
-        Provider.of<wos.Workouts>(context, listen: false).init().then((_) {
-          _isInit = false;
-          setState(() {
-            _isLoading = false;
-          });
-        });
-      } else {
-        _isInit = false;
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-    super.didChangeDependencies();
-  }
-
-  @override
   Widget build(BuildContext context) {
     print("building WorkoutsOverviewScreen.");
     final workoutsData = Provider.of<wos.Workouts>(context);
-    final List<wo.Workout> workouts = workoutsData.sortedWorkouts;
+    final List<wo.Workout> sortedWorkouts = workoutsData.sortedWorkouts;
+    final Map<String, wo.Workout> workouts = workoutsData.workouts;
+    final Map<String, UserExercise> usExs = Provider.of<Exercises>(context).userExercises;
+    final Map<String, UserExercise> visibleUsExs = Provider.of<Exercises>(context).exercises;
+    final WorkoutOverviews wovs = WorkoutOverviews.calc(workouts, usExs);
+
     return Scaffold(
-        appBar: AppBar(),
-        drawer: AppDrawer(),
-        body: _isLoading
-            ? Center(
-                child: CircularProgressIndicator(),
-              )
-            : SafeArea(
-                child: SmartRefresher(
-                  enablePullDown: true,
-                  enablePullUp: false,
-                  header: WaterDropMaterialHeader(
-                    // Configure the default header indicator. If you have the same header indicator for each page, you need to set this
-                    // semanticsLabel: "Test",
-                    // distance: 200,
-                    backgroundColor: Theme.of(context).accentColor,
-                    color: Theme.of(context).accentColor,
-                  ),
-                  controller: _refreshController,
-                  onRefresh: _onRefresh,
-                  onLoading: _onLoading,
-                  child: Column(children: <Widget>[
-                    Container(
-                      height: (MediaQuery.of(context).size.height - 82) * 0.27,
-                      child: WeeklySummary(),
-                    ),
-                    Container(
-                      height: (MediaQuery.of(context).size.height - 82) * 0.73,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(7.0),
-                        itemCount: workouts.length,
-                        itemBuilder: (ctx, i) => ChangeNotifierProvider.value(
-                          value: workouts[i],
-                          child: WorkoutItem(key: ValueKey(workouts[i].workoutId)),
-                        ),
+      appBar: AppBar(
+        title: Text(
+          "Workouts",
+          style: TextStyle(color: Colors.white70),
+        ),
+      ),
+      drawer: AppDrawer(),
+      body: _isLoading
+          ? Center(
+              child: CircularProgressIndicator(),
+            )
+          : SmartRefresher(
+              enablePullDown: true,
+              enablePullUp: false,
+              header: WaterDropMaterialHeader(
+                // Configure the default header indicator. If you have the same header indicator for each page, you need to set this
+                // semanticsLabel: "Test",
+                // distance: 200,
+                backgroundColor: Theme.of(context).accentColor,
+                color: Theme.of(context).accentColor,
+              ),
+              controller: _refreshController,
+              onRefresh: _onRefresh,
+              onLoading: _onLoading,
+              child: ListView(children: <Widget>[
+                Container(
+                  height: (MediaQuery.of(context).size.height - 82) * 0.27,
+                  child: WeeklySummary(wovs),
+                ),
+                Container(
+                  height: (MediaQuery.of(context).size.height - 82 - 100) * 0.73,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(7.0),
+                    itemCount: sortedWorkouts.length,
+                    itemBuilder: (ctx, i) => ChangeNotifierProvider.value(
+                      value: sortedWorkouts[i],
+                      child: WorkoutItem(
+                        key: ValueKey(sortedWorkouts[i].localId),
+                        workoutPoints: wovs.getWorkoutPoints(sortedWorkouts[i].localId),
+                        workout: sortedWorkouts[i],
+                        userExercises: visibleUsExs,
                       ),
                     ),
-                  ]),
+                  ),
                 ),
-              ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: () {
-            String userId = Provider.of<User>(context, listen: false).userId;
-            wo.Workout newWorkout = wo.Workout.newWithUserId(userId);
-            Provider.of<wos.Workouts>(context, listen: false).addWorkout(newWorkout);
-            setState(() {});
-          },
-          icon: Icon(Icons.add),
-          label: Text("New Workout"),
-        ));
+              ]),
+            ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          String userId = Provider.of<User>(context, listen: false).userId;
+          wo.Workout newWorkout = wo.Workout.newWithUserId(userId);
+          Provider.of<wos.Workouts>(context, listen: false).addWorkout(newWorkout);
+          setState(() {});
+        },
+        icon: Icon(Icons.add),
+        label: Text("New Workout"),
+      ),
+    );
   }
 }

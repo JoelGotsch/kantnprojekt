@@ -45,3 +45,13 @@ int dayWeekYearNumber(DateTime date) {
   int yearWeek = weekYearNumber(date);
   return yearWeek * 100 + date.weekday;
 }
+
+dynamic getFromJson(String key, Map<String, dynamic> json, dynamic defaultVal) {
+  if (json.containsKey(key)) {
+    // print("parsing json: $key found.");
+    return (json[key]);
+  } else {
+    // print("parsing json: $key not found.");
+    return (defaultVal);
+  }
+}

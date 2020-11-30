@@ -9,13 +9,22 @@ import 'package:flutter_datetime_picker/flutter_datetime_picker.dart';
 
 import '../providers/workout.dart' as wo;
 import '../providers/workouts.dart' as wos;
-import '../providers/exercises.dart' as ex;
+import '../providers/exercises.dart' as exs;
+import '../misc/exercise.dart' as ex;
+import '../misc/user_exercise.dart' as usEx;
 import '../misc/decimalInputFormatter.dart';
 // import '../views/edit_workout.dart';
 
 class WorkoutItem extends StatefulWidget {
+  final double workoutPoints;
+  final Map<String, usEx.UserExercise> userExercises;
+  final wo.Workout workout;
+
   const WorkoutItem({
     @required Key key,
+    @required this.workoutPoints,
+    @required this.workout,
+    @required this.userExercises,
   }) : super(key: key);
 
   @override
@@ -24,47 +33,50 @@ class WorkoutItem extends StatefulWidget {
 
 class _WorkoutItemState extends State<WorkoutItem> {
   var _expanded = false;
-  var _isInit = true;
+  // var _isInit = true;
   final _noteFocusNode = FocusNode();
   final _numberFocusNode = FocusNode();
   // final _form = GlobalKey<FormState>(); // Used for note?
   final _formActions = GlobalKey<FormState>();
   wo.Workout workout;
-  wo.Action _newAction = wo.Action("", "", 0, "", null);
-  Map<String, ex.Exercise> _allExercises = {};
-  ex.Exercise _chosenExercise;
+  wo.Action _newAction = wo.Action.create();
+  Map<String, usEx.UserExercise> _visibleExercises = {};
+  usEx.UserExercise _chosenExercise;
 
-  @override
-  void didChangeDependencies() {
-    // _editedWorkout = Provider.of<wo.Workout>(context, listen: false);
-    if (_isInit) {
-      workout = Provider.of<wo.Workout>(context, listen: false);
-      // final workoutId = ModalRoute.of(context).settings.arguments as String;
-      // print("workoutId in didChangeDeps: $workoutId");
-      // if (workoutId != null) {
-      //   // _editedWorkout = Provider.of<wos.Workouts>(context, listen: false)
-      //   //     .byId(workoutId)
-      //   //     .copy();
-      //   print(_editedWorkout.localId);
-      //   // _initValues = {
-      //   //   'date': _editedWorkout.date,
-      //   //   'note': _editedWorkout.note,
-      //   // };
-      // }
-      try {
-        _allExercises = Provider.of<wos.Workouts>(context, listen: false).exercises;
-      } catch (e) {
-        print("Couldn't load exercises in edit-workouts. " + e.toString());
-      }
-    }
-    _isInit = false;
-    // if (min(_editedWorkout.actions.length * 50.0 + 250, 900) != totalHeight) {
-    //   setState(() {
-    //     totalHeight = min(_editedWorkout.actions.length * 50.0 + 250, 900);
-    //   });
-    // }
-    super.didChangeDependencies();
-  }
+  // @override
+  // void didChangeDependencies() {
+  //   // _editedWorkout = Provider.of<wo.Workout>(context, listen: false);
+  //   if (_isInit) {
+  //     workout = Provider.of<wo.Workout>(context, listen: false);
+  //     String workoutId = workout.localId;
+  //     print("didChangeDependencies workoutId = $workoutId");
+  //     _newAction.workoutId = workoutId;
+  //     // final workoutId = ModalRoute.of(context).settings.arguments as String;
+  //     // print("workoutId in didChangeDeps: $workoutId");
+  //     // if (workoutId != null) {
+  //     //   // _editedWorkout = Provider.of<wos.Workouts>(context, listen: false)
+  //     //   //     .byId(workoutId)
+  //     //   //     .copy();
+  //     //   print(_editedWorkout.localId);
+  //     //   // _initValues = {
+  //     //   //   'date': _editedWorkout.date,
+  //     //   //   'note': _editedWorkout.note,
+  //     //   // };
+  //     // }
+  //     try {
+  //       _visibleExercises = Provider.of<exs.Exercises>(context, listen: false).exercises;
+  //     } catch (e) {
+  //       print("Couldn't load exercises in edit-workouts. " + e.toString());
+  //     }
+  //   }
+  //   _isInit = false;
+  //   // if (min(_editedWorkout.actions.length * 50.0 + 250, 900) != totalHeight) {
+  //   //   setState(() {
+  //   //     totalHeight = min(_editedWorkout.actions.length * 50.0 + 250, 900);
+  //   //   });
+  //   // }
+  //   super.didChangeDependencies();
+  // }
 
   @override
   void dispose() {
@@ -80,13 +92,15 @@ class _WorkoutItemState extends State<WorkoutItem> {
     if (!isValid || _chosenExercise == null || _newAction.number == 0) {
       return;
     }
-    _newAction.exerciseId = _chosenExercise.exerciseId;
-    _newAction.exercise = _chosenExercise;
-    _newAction.workoutId = Provider.of<wo.Workout>(context, listen: false).localId;
+    _newAction.exerciseId = _chosenExercise.exercise.localId;
+    // _newAction.exercise = _chosenExercise.exercise;
+    String workoutId = Provider.of<wo.Workout>(context, listen: false).localId;
+    print("_addaction workoutId = $workoutId");
+    _newAction.workoutId = workoutId;
     try {
       Provider.of<wos.Workouts>(context, listen: false).addAction(_newAction);
       // workout.addAction(_newAction);
-      _newAction = wo.Action("", "", 0, "", null);
+      _newAction = wo.Action.create(workoutId: workoutId);
       _chosenExercise = null;
     } catch (error) {
       await showDialog(
@@ -110,7 +124,11 @@ class _WorkoutItemState extends State<WorkoutItem> {
 
   @override
   Widget build(BuildContext context) {
-    workout = Provider.of<wo.Workout>(context);
+    // workout = Provider.of<wo.Workout>(context);
+    workout = widget.workout;
+    _visibleExercises = widget.userExercises;
+    _newAction.workoutId = workout.localId;
+
     final double totalHeight = min(workout.actions.length * 45.0 + 100, 900);
     return Card(
       margin: EdgeInsets.all(5),
@@ -139,7 +157,7 @@ class _WorkoutItemState extends State<WorkoutItem> {
               });
             },
             child: ListTile(
-              title: Text('${workout.points} points'),
+              title: Text('${widget.workoutPoints.toStringAsFixed(1)} points'),
               subtitle: GestureDetector(
                 child: Container(
                   // color: Theme.of(context).accentColor,
@@ -202,16 +220,16 @@ class _WorkoutItemState extends State<WorkoutItem> {
                         children: <Widget>[
                           Container(
                             width: MediaQuery.of(context).size.width * 0.3,
-                            child: DropdownSearch<ex.Exercise>(
+                            child: DropdownSearch<usEx.UserExercise>(
                                 label: "Exercise",
                                 showSearchBox: true,
                                 // showSelectedItem: true,
                                 selectedItem: _chosenExercise != null ? _chosenExercise : null,
-                                items: _allExercises.values.toList(),
-                                itemAsString: (ex.Exercise exercise) => exercise.title,
-                                onChanged: (ex.Exercise exercise) {
+                                items: _visibleExercises.values.toList(),
+                                itemAsString: (usEx.UserExercise userExercise) => userExercise.title,
+                                onChanged: (usEx.UserExercise userExercise) {
                                   setState(() {
-                                    _chosenExercise = exercise;
+                                    _chosenExercise = userExercise;
                                   });
                                 }),
                           ),
@@ -266,6 +284,7 @@ class _WorkoutItemState extends State<WorkoutItem> {
                         itemCount: workout.actions.length,
                         itemBuilder: (context, i) {
                           wo.Action action = workout.actions.values.toList()[i];
+                          usEx.UserExercise userExercise = Provider.of<exs.Exercises>(context, listen: false).getUserExercise(action.exerciseId);
                           return (Dismissible(
                             key: ValueKey(action.actionId),
                             direction: DismissDirection.endToStart,
@@ -288,8 +307,9 @@ class _WorkoutItemState extends State<WorkoutItem> {
                                 // height: 30,
                                 margin: EdgeInsets.all(10),
                                 child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: <Widget>[
-                                  Text("${action.number} ${action.exercise.unit} ${action.exercise.title}"),
-                                  Text("${action.points} points")
+                                  // exercises.get action.exerciseId
+                                  Text("${action.number} ${userExercise.unit} ${userExercise.title}"),
+                                  Text("${(userExercise.points * action.number).toStringAsFixed(1)} points")
                                 ]),
 
                                 alignment: Alignment.center,

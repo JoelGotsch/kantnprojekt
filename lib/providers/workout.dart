@@ -6,80 +6,67 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 
 import '../misc/functions.dart';
-import 'exercises.dart';
+import '../misc/exercise.dart';
 
 class Action {
-  String actionId = getRandomString(20);
+  String actionId;
   String exerciseId;
   String workoutId;
   double number;
   String note;
   // double points;
-  Exercise exercise;
+  // Exercise exercise;
 
-  Action(this.exerciseId, this.workoutId, this.number, this.note, this.exercise);
+  // Action(this.exerciseId, this.workoutId, this.number, this.note, this.exercise);
 
-  factory Action.fromJson(Map<String, dynamic> parsedJson, workoutId, {Exercise exercise}) {
-    Exercise ex;
-    // Exercises exs = Exercises();
-    // exs.init();
-    // this is probably inefficient as a new object is created each time, one is sufficient and cleaner!
-    try {
-      if (exercise != null) {
-        ex = exercise;
-      } else {
-        ex = Exercise.fromJson(parsedJson['exercise']);
-      }
-    } catch (e) {
-      throw Exception("Exercise was not part of the Action-information");
-      // ex = exs.getExercise(parsedJson['exercise_id']);
+  Action(this.exerciseId, this.workoutId, this.number, this.note);
+
+  factory Action.create({String exerciseId = "", String workoutId = "", double number = 0, String note = ""}) {
+    String actionId = getRandomString(20);
+    Action ac = Action(exerciseId, workoutId, number, note);
+    ac.actionId = actionId;
+    return (ac);
+  }
+
+  factory Action.fromJson(Map<String, dynamic> parsedJson, String workoutId) {
+    String exerciseId = parsedJson['exercise_id'];
+    if (exerciseId == null || exerciseId == "") {
+      throw ("Creating Action from json: empty exercise Id");
     }
-
     Action ac = Action(
       parsedJson['exercise_id'],
       workoutId,
       double.parse(parsedJson['number'].toString()),
       parsedJson['note'],
-      ex,
     );
     if (parsedJson['id'] != null) {
       ac.actionId = parsedJson['id'];
-      // } else {
-      //   ac.actionId = getRandomString(20);
     }
     return (ac);
   }
 
-  double get points {
-    return this.number * this.exercise.points;
-  }
+  // double get points {
+  //   return this.number * this.exercise.points;
+  // }
 
-  double pointsAllowance(int number) {
-    // returns points given that this exercise was already done *number* of times this week (adjusting for weekly allowance)
-    int remainingAllowance = max(this.exercise.weeklyAllowance - number, 0);
-    return ((this.number - remainingAllowance) * this.exercise.points);
-  }
+  // double pointsAllowance(int number) {
+  //   // returns points given that this exercise was already done *number* of times this week (adjusting for weekly allowance)
+  //   double remainingAllowance = max(this.exercise.weeklyAllowance - number, 0);
+  //   return ((this.number - remainingAllowance) * this.exercise.points);
+  // }
 
   Map<String, dynamic> toJson() {
     return ({
       'id': actionId,
       'exercise_id': exerciseId,
-      'exercise': exercise.toJson(),
       'workout_id': workoutId,
       'number': number,
       'note': note,
-      'points': points,
     });
   }
 
   bool equals(Action ac) {
-    return (actionId == ac.actionId &&
-        exerciseId == ac.exerciseId &&
-        exercise.equals(ac.exercise) &&
-        workoutId == ac.workoutId &&
-        number == ac.number &&
-        note == ac.note &&
-        points == ac.points);
+    return (actionId == ac.actionId && exerciseId == ac.exerciseId && workoutId == ac.workoutId && number == ac.number && note == ac.note);
   }
 
   @override
@@ -138,19 +125,20 @@ class Workout with ChangeNotifier {
         _notDeleted == wo._notDeleted);
   }
 
-  Workout({this.workoutId, this.localId, this.userId, this.date, this.note});
+  Workout({this.workoutId, this.localId, this.userId, this.date, this.note, this.latestEdit});
 
   // set workoutId(String woId) {
   //   this.workoutId = woId;
   // }
 
   factory Workout.newWithUserId(userId) {
-    return (Workout(workoutId: null, localId: getRandomString(30), userId: userId, date: DateTime.now(), note: ""));
+    return (Workout(workoutId: null, localId: getRandomString(30), userId: userId, date: DateTime.now(), latestEdit: DateTime.now(), note: ""));
   }
 
   factory Workout.fromJson(Map<String, dynamic> parsedJson) {
     String id;
-    if (parsedJson['id'].toString().length > 0) {
+    if (parsedJson.containsKey("id") && parsedJson['id'] != null) {
+      //parsedJson['id'].toString().length > 0 &&
       id = parsedJson['id'];
     } else {
       id = parsedJson['local_id'];
@@ -177,17 +165,13 @@ class Workout with ChangeNotifier {
     }
     // add exercises
     (parsedJson['actions'] as Map<String, dynamic>).forEach((key, value) {
-      wo.addAction(Action.fromJson(value as Map<String, dynamic>, wo.workoutId));
+      try {
+        wo.addAction(Action.fromJson(value as Map<String, dynamic>, wo.workoutId), fromUser: false);
+      } catch (e) {
+        print("Couldn't create action from json: $e");
+      }
     });
     return (wo);
-  }
-
-  double get points {
-    double points = 0.0;
-    actions.forEach((key, value) {
-      points += value.points;
-    });
-    return points;
   }
 
   Workout copy() {
@@ -210,7 +194,6 @@ class Workout with ChangeNotifier {
       'date': date.toIso8601String(),
       'latest_edit': latestEdit.toIso8601String(),
       'note': note,
-      'points': points,
       'actions': helper,
       'not_deleted': _notDeleted,
       'uploaded': _uploaded,
@@ -222,7 +205,7 @@ class Workout with ChangeNotifier {
     return (json.encode(this.toJson()));
   }
 
-  void addAction(Action ac) {
+  void addAction(Action ac, {bool fromUser = true}) {
     // can have mulitple actions of same exercise (i.e. mulitple push-up Exercises)
     ac.workoutId = this.workoutId;
     if (actions.containsKey(ac.actionId)) {
@@ -231,15 +214,16 @@ class Workout with ChangeNotifier {
       oldAc.note = ac.note;
       oldAc.exerciseId = ac.exerciseId;
       oldAc.number = ac.number;
-      oldAc.exercise = ac.exercise;
     } else {
       // create new
       actions.putIfAbsent(ac.actionId, () => ac);
     }
 
     // this.points += ac.points;
-    _uploaded = false;
-    latestEdit = DateTime.now();
+    if (fromUser) {
+      _uploaded = false;
+      latestEdit = DateTime.now();
+    }
   }
 
   void setDate(DateTime newDate) {

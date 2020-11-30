@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 // import 'package:charts_flutter/flutter.dart' as charts;
 
-import '../providers/workouts.dart' as wos;
-import '../providers/workout.dart' as wo;
 import '../misc/workouts_overview.dart';
 
 class WeeklySummary extends StatelessWidget {
+  final WorkoutOverviews wovs;
+  WeeklySummary(this.wovs);
+
   @override
   Widget build(BuildContext context) {
-    final Map<String, wo.Workout> workouts = Provider.of<wos.Workouts>(context).workouts;
-    final WorkoutOverviews wovs = WorkoutOverviews.calc(workouts);
     final DateTime today = DateTime.now();
     final DateTime initFirstDay = today.add(Duration(days: -5, hours: today.hour, minutes: today.minute, seconds: today.second));
 
@@ -55,8 +53,8 @@ class WeeklySummary extends StatelessWidget {
         height: 35,
         child: Column(
           children: [
-            Text(wovs.pointsCurrWeek().toString() + " points this week"),
-            Text(wovs.pointsLastNDays(7).toString() + " points last 7 days"),
+            Text(wovs.pointsCurrWeek().toStringAsFixed(1) + " points this week"),
+            Text(wovs.pointsLastNDays(7).toStringAsFixed(1) + " points last 7 days"),
           ],
         ),
       )
