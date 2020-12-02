@@ -27,6 +27,7 @@ class _WorkoutsOverviewScreenState extends State<WorkoutsOverviewScreen> {
   void _onRefresh() async {
     // monitor network fetch
     await Provider.of<wos.Workouts>(context, listen: false).fetchNew();
+    await Provider.of<wos.Workouts>(context, listen: false).uploadOfflineWorkouts(saveAndNotifyIfChanged: true);
     // if failed,use refreshFailed()
     _refreshController.refreshCompleted();
   }

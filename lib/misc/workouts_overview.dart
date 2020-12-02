@@ -137,14 +137,17 @@ class WorkoutOverviews extends ChangeNotifier {
     UserExercise usEx;
     double pointsBefore = 0;
     double actionPoints;
-    if (userExercises.containsKey(action.exerciseId)) {
-      usEx = userExercises[action.exerciseId];
-    } else {
+    userExercises.forEach((key, usEx2) {
+      if (usEx2.exercise.localId == action.localExerciseId) {
+        usEx = usEx2;
+      } else if (usEx2.localId == action.exerciseId || usEx2.userExerciseId == action.localExerciseId || usEx2.userExerciseId == action.exerciseId) {
+        print("ERROR in workouts_overview add_action: this is stragen, investigate!");
+      }
+    });
+    if (usEx == null) {
       print("Error: couldn't find exerciseId ${action.exerciseId} in list of userExercises.");
       return (false);
-      // throw ("Error: couldn't find exerciseId ${action.exerciseId} in list of userExercises.");
     }
-    // print(usEx.title);
 
     if (dailyStatus.containsKey(daywynr)) {
       ds = dailyStatus[daywynr];

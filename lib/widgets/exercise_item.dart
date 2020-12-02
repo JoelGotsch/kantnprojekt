@@ -75,6 +75,7 @@ class _ExerciseItemState extends State<ExerciseItem> {
 
   Future<void> _saveExercise() async {
     final isValid = _formActions.currentState.validate();
+    print("userExercise: ${widget.userExercise}");
     _formActions.currentState.save();
     if (!isValid || _points == 0 || _maxPointsDay < 0 || _weeklyAllowance < 0 || _title == "") {
       return;
@@ -89,8 +90,10 @@ class _ExerciseItemState extends State<ExerciseItem> {
           userId: Provider.of<User>(context, listen: false).userId);
       UserExercise usEx = UserExercise.fromExercise(ex);
       Provider.of<Exercises>(context, listen: false).addExercise(ex, saveAndNotifyIfChanged: false);
-      Provider.of<Exercises>(context, listen: false).addUserExercise(usEx, saveAndNotifyIfChanged: true);
+      Provider.of<Exercises>(context, listen: false).addUserExercise(usEx, saveAndNotifyIfChanged: false);
       Provider.of<Exercises>(context, listen: false).cleanEmptyExercises();
+      print("userExercise saved: $usEx");
+      print(usEx.toString());
     } else {
       //updating existing UserExercise
       Provider.of<Exercises>(context, listen: false).updateUserExercise(widget.userExercise.localId,
@@ -126,7 +129,7 @@ class _ExerciseItemState extends State<ExerciseItem> {
             ),
           ),
           onDismissed: (direction) {
-            print("TODO: delete UserExercise");
+            Provider.of<Exercises>(context, listen: false).deleteUserExercise(widget.userExercise.localId, true);
             // Provider.of<wos.Workouts>(context, listen: false).deleteWorkout(workout.localId);
           },
           child: Column(children: <Widget>[
@@ -137,7 +140,13 @@ class _ExerciseItemState extends State<ExerciseItem> {
                 });
               },
               child: ListTile(
-                title: widget.userExercise.exercise.title == "" ? Text("New exercise") : Text('${widget.userExercise.title}'),
+                title: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: <Widget>[
+                  widget.userExercise.exercise.title == "" ? Text("New exercise") : Text('${widget.userExercise.title}'),
+                  Icon(
+                    widget.userExercise.uploaded ? Icons.backup : Icons.autorenew,
+                    color: Theme.of(context).accentColor,
+                  ),
+                ]),
                 trailing: IconButton(
                   icon: Icon(_expanded ? Icons.expand_less : Icons.expand_more),
                   onPressed: () {

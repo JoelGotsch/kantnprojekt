@@ -20,10 +20,6 @@ class Exercise {
   bool uploaded = true;
   // bool _notDeleted = true; // used when deleting exercises
 
-  bool get isUploaded {
-    return (uploaded);
-  }
-
   Exercise(this.title, this.note, this.unit, this.points,
       {this.description = "",
       this.maxPointsDay = .0,
@@ -43,12 +39,8 @@ class Exercise {
   }
 
   factory Exercise.fromJson(Map<String, dynamic> parsedJson) {
-    String id;
-    if (parsedJson.containsKey("id")) {
-      id = parsedJson['id'];
-    } else {
-      id = parsedJson['local_id'];
-    }
+    String id = misc.getFromJson("id", parsedJson, "") as String;
+    String localId = misc.getFromJson("localId", parsedJson, id) as String;
     String title = misc.getFromJson("title", parsedJson, "") as String;
     String note = misc.getFromJson("note", parsedJson, "") as String;
     String unit = misc.getFromJson("unit", parsedJson, "") as String;
@@ -59,10 +51,14 @@ class Exercise {
     double maxPointsWeek = misc.getFromJson("max_points_week", parsedJson, .0) as double;
     double dailyAllowance = misc.getFromJson("daily_allowance", parsedJson, .0) as double;
     double weeklyAllowance = misc.getFromJson("weekly_allowance", parsedJson, .0) as double;
-    DateTime latestEdit = DateTime.parse(misc.getFromJson("latest_edit", parsedJson, "2020-01-01 00:00:00.000") as String);
-    bool checkbox = misc.getFromJson("checkbox", parsedJson, false);
+    DateTime latestEdit = DateTime.parse(misc.getFromJson("latest_edit", parsedJson, "2020-01-01 00:00:00.000").toString());
+    bool uploaded = misc.getFromJson("uploaded", parsedJson, "true").toString().toLowerCase() == "true";
+    bool checkbox = misc.getFromJson("checkbox", parsedJson, "false").toString().toLowerCase() == "true";
     int checkboxReset = misc.getFromJson("checkbox_reset", parsedJson, 2);
-    // print("Exercise from Json input: $parsedJson");
+    if (localId == null || localId == "" || localId == "null" || title == "" || userId == "") {
+      throw ("tried to add exercise from invalid json: $parsedJson");
+    }
+    print("Exercise from Json input: uploaded = $uploaded");
     Exercise ex = Exercise(title, note, unit, points,
         description: description,
         maxPointsDay: maxPointsDay,
@@ -70,23 +66,12 @@ class Exercise {
         dailyAllowance: dailyAllowance,
         weeklyAllowance: weeklyAllowance,
         exerciseId: id,
-        localId: id,
+        localId: localId,
         userId: userId,
         latestEdit: latestEdit,
         checkbox: checkbox,
         checkboxReset: checkboxReset);
-    if (ex.checkbox.toString() != parsedJson["checkbox"].toString()) {
-      print("Error in parsing bool value in exercise.fromJson: ${ex.checkbox} vs ${parsedJson["checkbox"]}");
-    }
-    // if (parsedJson['not_deleted'] != null) {
-    //   ex._notDeleted = parsedJson['not_deleted'];
-    // }
-    if (parsedJson['uploaded'] != null) {
-      ex.uploaded = parsedJson['uploaded'];
-    } else {
-      // from api
-      ex.uploaded = true;
-    }
+    ex.uploaded = uploaded;
     return (ex);
   }
 

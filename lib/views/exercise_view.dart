@@ -25,6 +25,7 @@ class _ExercisesOverviewScreenState extends State<ExercisesOverviewScreen> {
     // monitor network fetch
     print("Refreshing due to pull down on exercises view.");
     await Provider.of<exs.Exercises>(context, listen: false).fetchNew();
+    await Provider.of<exs.Exercises>(context, listen: false).uploadOfflineExercises(saveAndNotifyIfChanged: true);
     // if failed,use refreshFailed()
     _refreshController.refreshCompleted();
   }

@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 // import 'dart:collection'; // for linked hashmaps
 
 import '../misc/functions.dart' as funcs;
+import '../misc/exercise.dart';
 import 'exercises.dart';
 import 'workout.dart';
 
@@ -38,14 +39,38 @@ class Workouts with ChangeNotifier {
       previousWorkouts.loadingOnlineWorkouts = true;
       previousWorkouts.setup();
     }
+    if (exs.hashCode != previousWorkouts.exercises.hashCode && !previousWorkouts.loadingOnlineWorkouts) {
+      // make sure, that if some userExercises/ Exercises where uploaded, that all actions refer to exerciseId
+      previousWorkouts._workouts.forEach((localId, wo) {
+        wo.actions.forEach((key, action) {
+          if (action.exerciseId == null || action.exerciseId == "") {
+            // was the exercise now uploaded?
+            try {
+              Exercise ex = exs.getExercise(action.localExerciseId);
+              if (ex.exerciseId != null && ex.exerciseId != "") {
+                action.exerciseId = ex.exerciseId;
+              } else {
+                print("Still waiting for upload of exercise ${action.localExerciseId}");
+              }
+            } catch (e) {
+              print("Still waiting for upload of exercise ${action.localExerciseId}");
+            }
+          }
+        });
+      });
+      previousWorkouts.exercises = exs;
+    }
     return (previousWorkouts);
   }
 
   void setup() async {
-    bool addedExercise = await addingFromStorage(saveAndNotifyIfChanged: false);
-    addedExercise = await syncronize(saveAndNotifyIfChanged: false) || addedExercise;
+    print("running workouts setup..");
+    bool addedWorkout = await addingFromStorage(saveAndNotifyIfChanged: false);
+    // print("after added workouts from storage: $this");
+    addedWorkout = await syncronize(saveAndNotifyIfChanged: false) || addedWorkout;
+    // print("after added workouts from syncronizing: $this");
     print("Setup completed, now notifying listeners");
-    if (addedExercise) {
+    if (addedWorkout) {
       print("saving from setup");
       this.save();
       notifyListeners();
@@ -54,11 +79,11 @@ class Workouts with ChangeNotifier {
 
   Future<bool> addingFromStorage({bool saveAndNotifyIfChanged = false}) async {
     bool addedExercise = false;
-    print("adding from storage");
+    print("adding workouts from storage");
     try {
       final prefs = await SharedPreferences.getInstance();
       String woString = prefs.getString("Workouts");
-      print(woString);
+      // print(woString);
       Map<String, dynamic> _json = json.decode(woString);
       addedExercise = this.addingFromJson(_json, saveAndNotifyIfChanged: false);
       if (saveAndNotifyIfChanged && addedExercise) {
@@ -67,8 +92,8 @@ class Workouts with ChangeNotifier {
         notifyListeners();
       }
       return (addedExercise);
-    } catch (Exception) {
-      print("Error: Couldn't load exercises/ userExercises from storage, probably never saved them. " + Exception.toString());
+    } catch (e) {
+      print("Error: Couldn't load exercises/ userExercises from storage, probably never saved them. " + e.toString());
     }
     return (false);
   }
@@ -87,25 +112,6 @@ class Workouts with ChangeNotifier {
       });
     } catch (e) {
       print("Couldn't load workouts from Json. " + e.toString());
-    }
-    if (saveAndNotifyIfChanged && _addedWorkout) {
-      save();
-      notifyListeners();
-    }
-    return (_addedWorkout);
-  }
-
-  bool addingFromParsed(Map<String, Workout> workoutsMap, {saveAndNotifyIfChanged: true}) {
-    // returns true if a workout was added or updated.
-    // if saveAndNotifyIfChanged is true, then new workouts are saved and NotifyListeners is performed here.
-    bool _addedWorkout = false;
-    try {
-      workoutsMap.forEach((key, wo) {
-        _addedWorkout = this.addWorkout(wo, saveAndNotifyIfChanged: false) || _addedWorkout;
-        // print("added exercise from storage: ${ex.exerciseId}");
-      });
-    } catch (e) {
-      print("Couldn't load parsed workouts. " + e.toString());
     }
     if (saveAndNotifyIfChanged && _addedWorkout) {
       save();
@@ -139,9 +145,10 @@ class Workouts with ChangeNotifier {
             print("Found newer version of workout $id on server: server: ${woLatestEdit.toIso8601String()} vs local ${wo.latestEdit.toIso8601String()}");
             serverNewWoIds.add(id);
           } else if (wo.latestEdit.compareTo(woLatestEdit) > 0) {
-            if (wo.isUploaded) {
-              wo.isUploaded = false;
-              print("Found newer version of workout $id on phone: server: ${woLatestEdit.toIso8601String()} vs local ${wo.latestEdit.toIso8601String()}");
+            print("Found newer version of workout $id on phone: server: ${woLatestEdit.toIso8601String()} vs local ${wo.latestEdit.toIso8601String()}");
+            if (wo.uploaded) {
+              print("ERROR: workout should be newer on the phone, but it is already uploaded???");
+              wo.uploaded = false;
             }
           }
         } else {
@@ -149,7 +156,7 @@ class Workouts with ChangeNotifier {
         }
       });
       _workouts.forEach((woId, wo) {
-        if (!workoutEditDates.containsKey(woId) && wo.isUploaded) {
+        if (!workoutEditDates.containsKey(woId) && wo.uploaded) {
           deledtedWoIds.add(woId);
         }
       });
@@ -158,20 +165,20 @@ class Workouts with ChangeNotifier {
       });
 
       Map<String, dynamic> newWorkouts = await this._fetch(workoutIds: serverNewWoIds);
-      addedWorkout = addingFromParsed(newWorkouts, saveAndNotifyIfChanged: false);
+      addedWorkout = addingFromJson(newWorkouts, saveAndNotifyIfChanged: false);
       loadedOnlineWorkouts = true;
       lastRefresh = DateTime.now();
       // print(exerciseEditDates);
       // check which editDates dont match with saved ones and get newer ones from server and post (send) if newer from app.
-    } catch (Exception) {
-      print("Error in syncronize Exercises: $Exception");
+    } catch (e) {
+      print("Error in syncronize Workouts: $e");
     }
     // this.fetchNew();
-    addedWorkout = await _uploadOfflineWorkouts(saveAndNotifyIfChanged: false) || addedWorkout;
-    if (saveAndNotifyIfChanged) {
+    addedWorkout = await uploadOfflineWorkouts(saveAndNotifyIfChanged: false) || addedWorkout;
+    if (saveAndNotifyIfChanged && addedWorkout) {
       notifyListeners();
       if (_saving) {
-        print("saving from syncronize");
+        print("saving workouts from syncronize");
         await this.save();
       }
     }
@@ -241,14 +248,13 @@ class Workouts with ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     print("saving ${_workouts.length} workouts..");
     String output = this.toString();
-    print(output);
     prefs.setString('Workouts', output);
   }
 
-  Future<Map<String, Workout>> _fetch(
+  Future<Map<String, dynamic>> _fetch(
       {String workoutId, List<String> workoutIds, DateTime minEditDate, DateTime startDate, DateTime endDate, int number = 0}) async {
     // deletes all locally stored exercises and loads the complete list from online database and stores values in sharedPreferences
-    Map<String, Workout> newWorkouts = {};
+    Map<String, dynamic> newWorkouts = {};
     Map<String, String> queryParameters = {};
     print("start fetching workouts..");
     if (workoutId != null) {
@@ -284,18 +290,7 @@ class Workouts with ChangeNotifier {
 
     if (response.statusCode == 201 || response.statusCode == 200) {
       // for (Map json_ in result["data"]) {
-      for (Map json_ in result.values) {
-        try {
-          print("Trying to create workout:");
-          Workout wo = Workout.fromJson(json_);
-          if (json_["id"] != null) {
-            newWorkouts.putIfAbsent(json_["id"], () => wo);
-            print("fetched workout.. " + wo.workoutId);
-          }
-        } catch (e) {
-          print("Error while trying to create workout in fetch: $e");
-        }
-      }
+      newWorkouts = result["data"];
     } else {
       // If that call was not successful, throw an error.
       throw Exception('Failed to load Workout: ' + result["message"].toString());
@@ -303,29 +298,17 @@ class Workouts with ChangeNotifier {
     return (newWorkouts);
   }
 
-  // Future<void> fetchWorkout(String workoutId, {bool save = false}) async {
-  //   print("Fetching workout $workoutId");
-  //   if (workoutId == null) {
-  //     throw (Exception("wanted to fetch workout null."));
-  //   } else {
-  //     Map<String, Workout> oneWorkout = await this._fetch(workoutId: workoutId);
-  //     if (oneWorkout != null && oneWorkout.length > 0) {
-  //       _workouts[workoutId] = oneWorkout[workoutId];
-  //       notifyListeners();
-  //       if (save) {
-  //         this.pruneWorkoutList();
-  //         this.save();
-  //       }
-  //     }
-  //   }
-  // }
-
   Future<void> fetchNew() async {
     this.setLastRefresh();
     print("fetching new workouts since $lastRefresh");
-    Map<String, dynamic> newWorkouts = await this._fetch(minEditDate: lastRefresh);
-    addingFromParsed(newWorkouts, saveAndNotifyIfChanged: true);
-    print("fetched new workouts");
+    try {
+      Map<String, dynamic> newWorkouts = await this._fetch(minEditDate: lastRefresh);
+      addingFromJson(newWorkouts, saveAndNotifyIfChanged: true);
+      print("fetched new workouts");
+    } catch (e) {
+      print("Couldn't fetch new workouts: $e");
+    }
+
     lastRefresh = DateTime.now();
   }
 
@@ -334,7 +317,7 @@ class Workouts with ChangeNotifier {
     List<String> deleteKeys = [];
     if (_workouts.length > 0) {
       _workouts.forEach((key, value) {
-        if (value.isUploaded && !value.isNotDeleted) {
+        if (value.uploaded && !value.isNotDeleted) {
           print("Workout $key was pruned. Something happened.");
           deleteKeys.add(key);
         }
@@ -362,23 +345,27 @@ class Workouts with ChangeNotifier {
         // "user_id": _userId,
       },
     );
-    final Map result = json.decode(response.body);
-    print("result in fetching workout headers: $result");
+    try {
+      final Map result = json.decode(response.body)["data"];
+      // print("result in fetching workout headers: $result");
 
-    if (response.statusCode == 201 || response.statusCode == 200) {
-      // for (Map json_ in result["data"]) {
-      result.forEach((key, value) {
-        try {
-          allWorkouts.putIfAbsent(key, () => DateTime.parse(value));
-        } catch (Exception) {
-          print(Exception);
-        }
-      });
-    } else {
-      // If that call was not successful, throw an error.
-      throw Exception('Failed to load Workout ' + result["message"]);
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        // for (Map json_ in result["data"]) {
+        result.forEach((key, value) {
+          try {
+            allWorkouts.putIfAbsent(key, () => DateTime.parse(value));
+          } catch (Exception) {
+            print(Exception);
+          }
+        });
+        return (allWorkouts);
+      } else {
+        // If that call was not successful, throw an error.
+        throw Exception('Failed to load Workout ' + result["message"]);
+      }
+    } catch (e) {
+      throw ("Problem while fetching last edit dates of workouts: Response: ${response.body}, error:" + e.toString());
     }
-    return (allWorkouts);
   }
 
   Map<String, dynamic> toJson({bool allWorkouts = true, Map<String, Workout> workoutsMap}) {
@@ -427,6 +414,7 @@ class Workouts with ChangeNotifier {
     if (_workouts.containsKey(wo.localId) || _workouts.containsKey(wo.workoutId)) {
       // update existing workout
       Workout oldWo;
+      print("Trying to update workout..");
       if (_workouts.containsKey(wo.localId)) {
         oldWo = _workouts[wo.localId];
       } else {
@@ -437,7 +425,7 @@ class Workouts with ChangeNotifier {
         oldWo.date = wo.date;
         oldWo.latestEdit = DateTime.now();
         oldWo.note = wo.note;
-        oldWo.isUploaded = wo.isUploaded;
+        oldWo.uploaded = wo.uploaded;
         _addedWorkout = true;
       }
     } else {
@@ -451,9 +439,9 @@ class Workouts with ChangeNotifier {
     }
 
     if (saveAndNotifyIfChanged && _addedWorkout) {
-      if (!wo.isUploaded) {
+      if (!wo.uploaded) {
         print("_uploadOfflineWorkouts from add workout 1");
-        this._uploadOfflineWorkouts(saveAndNotifyIfChanged: true);
+        this.uploadOfflineWorkouts(saveAndNotifyIfChanged: true);
       } else {
         print("saving from add_workout");
         this.save();
@@ -463,30 +451,58 @@ class Workouts with ChangeNotifier {
     return (_addedWorkout);
   }
 
-  void deleteWorkout(String workoutId, {bool saveAndNotifyIfChanged = true}) async {
-    Workout wo = _workouts[workoutId];
-    wo.isNotDeleted = false;
-    wo.isUploaded = false;
-    // _workouts.removeWhere((key, value) => false);
-    if (saveAndNotifyIfChanged) {
-      print("_uploadOfflineWorkouts from adding action.");
-      await this._uploadOfflineWorkouts(saveAndNotifyIfChanged: false);
-      print("saving from delete workout");
-      this.save();
-      notifyListeners();
+  void deleteWorkout(String workoutId, bool upload, {bool saveAndNotifyIfChanged = true}) async {
+    print("Deleting workout $workoutId and upload = $upload");
+    try {
+      Workout wo = getWorkout(workoutId);
+      wo.isNotDeleted = false;
+      wo.uploaded = false;
+      if (upload) {
+        await this.uploadOfflineWorkouts(saveAndNotifyIfChanged: saveAndNotifyIfChanged);
+      } else {
+        _workouts.remove(wo.localId);
+        if (saveAndNotifyIfChanged) {
+          print("saving from delete_workout");
+          this.save();
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      print("Couldn't delete workout $workoutId because: $e");
     }
   }
 
-  void addAction(Action ac, {bool saveAndNotifyIfChanged = true}) async {
-    print("adding action..");
-    Workout wo = _workouts[ac.workoutId];
-    wo.addAction(ac);
-    if (saveAndNotifyIfChanged) {
-      print("_uploadOfflineWorkouts from adding action.");
-      await this._uploadOfflineWorkouts(saveAndNotifyIfChanged: false);
-      print("saving from add action");
-      this.save();
-      notifyListeners();
+  Workout getWorkout(String workoutId) {
+    Workout workout;
+    if (_workouts.containsKey(workoutId)) {
+      workout = _workouts[workoutId];
+    } else {
+      _workouts.forEach((key, wo) {
+        if (wo.localId == workoutId || wo.workoutId == workoutId) {
+          workout = wo;
+        }
+      });
+    }
+    if (workout == null) {
+      throw ("Couldn't find workout with id $workoutId");
+    }
+    return (workout);
+  }
+
+  void addAction(Action ac, String workoutId, {bool saveAndNotifyIfChanged = true}) async {
+    print("Workouts: adding action..");
+    try {
+      Workout wo = this.getWorkout(workoutId);
+      wo.addAction(ac, fromUser: true);
+      if (saveAndNotifyIfChanged) {
+        print("_uploadOfflineWorkouts from adding action.");
+        await this.uploadOfflineWorkouts(saveAndNotifyIfChanged: false);
+        print("saving from add action");
+        this.save();
+        notifyListeners();
+      }
+    } catch (e) {
+      print("couldn't add action: $e");
     }
   }
 
@@ -496,24 +512,34 @@ class Workouts with ChangeNotifier {
     wo.deleteAction(ac.actionId);
     if (saveAndNotifyIfChanged) {
       print("_uploadOfflineWorkouts from adding action.");
-      await this._uploadOfflineWorkouts(saveAndNotifyIfChanged: false);
+      await this.uploadOfflineWorkouts(saveAndNotifyIfChanged: false);
       print("saving from delete action");
       this.save();
       notifyListeners();
     }
   }
 
-  Future<bool> _uploadOfflineWorkouts({bool saveAndNotifyIfChanged = true}) async {
+  Future<bool> uploadOfflineWorkouts({bool saveAndNotifyIfChanged = true}) async {
     // returns true if at least one workout was uploaded
     // tries to upload all not uploaded workouts and updates the Ids, then saves to shared_preferences
     // if saveAndNotifyIfChanged,  the current state is saved on phone.
     Map<String, Workout> offlineWorkouts = {};
     bool _uploaded = false;
-    print("start syncronizing workouts.");
+    print("start uploading offline workouts.");
     _workouts.forEach((key, wo) {
-      if (!wo.isUploaded) {
-        offlineWorkouts.putIfAbsent(key, () => wo);
-        print("Workout $key is not uploaded yet. Will be synced now.");
+      if (!wo.uploaded) {
+        bool allExercisesUploaded = true;
+        wo.actions.forEach((key, ac) {
+          if (ac.exerciseId == "") {
+            allExercisesUploaded = false;
+          }
+        });
+        if (allExercisesUploaded) {
+          offlineWorkouts.putIfAbsent(key, () => wo);
+          print("Workout $key is not uploaded yet. Will be synced now.");
+        } else {
+          print("Workout $key can't be uploaded yet because at least one exercise is not uploaded yet.");
+        }
       }
     });
     if (offlineWorkouts == null || offlineWorkouts.length == 0) {
@@ -529,37 +555,32 @@ class Workouts with ChangeNotifier {
           headers: {
             "token": _token,
             'Content-Type': 'application/json; charset=UTF-8',
-            // "user_id": _userId,
           },
           body: jsonEncode(this.toJson(workoutsMap: offlineWorkouts)));
       final result2 = json.decode(response.body) as Map<String, dynamic>; //localId:workoutId
       Map<String, dynamic> result = result2["data"];
       if (response.statusCode == 201) {
         result.forEach((_localId, _workoutId2) {
-          String _workoutId = _workoutId2.toString();
-          print("local id: $_localId workoutId: $_workoutId");
-          // if (_workoutId == "") {
-          //   // thats the response if workout was deleted on server
-          //   print("removed workout $_localId");
-          //   _workouts.remove(_localId.toString());
-          // } else
-          if (_workoutId != null) {
-            Workout wo = _workouts[_localId.toString()];
-            if (wo == null) {
-              print("Something happened. WO is null! Inspect!");
-              print(this.toString());
-            }
-            wo.workoutId = _workoutId.toString();
-            wo.localId = _workoutId.toString();
-            wo.isUploaded = true;
+          try {
+            String _workoutId = _workoutId2.toString();
+            print("local id: $_localId workoutId: $_workoutId");
+            Workout wo = getWorkout(_localId);
             _uploaded = true;
-            wo.actions.forEach((key, ac) {
-              ac.workoutId = _workoutId;
-            });
-            if (_workoutId != _localId) {
-              _workouts.removeWhere((key, value) => key == _localId.toString());
-              _workouts[_workoutId] = wo;
+            if ((_workoutId == "" || _workoutId == "null" || _workoutId == null) && !wo.isNotDeleted) {
+              // that's the response if workout was deleted on server after the deletion request was sent to server
+              deleteWorkout(_localId, false, saveAndNotifyIfChanged: false);
+            } else if (wo.isNotDeleted) {
+              wo.workoutId = _workoutId;
+              // localId is not changed! consistency with behaviour in exercises where it is needed to find exercises with local id.
+              // this fixes the issue when an exercise is created offline, then an action is created with that exercise (so no id), then after syncing the ids for exercises change
+              // so the action refers to a non-existent exercise.
+              wo.uploaded = true;
+            } else {
+              print("ERROR: workout is not deleted but id came back empty: $wo");
+              print("$_workoutId");
             }
+          } catch (e2) {
+            print("Error while syncing workouts: " + e2.toString());
           }
         });
       } else {
@@ -568,7 +589,7 @@ class Workouts with ChangeNotifier {
     } catch (e) {
       print("Error while syncing workouts: " + e.toString());
     }
-    if (saveAndNotifyIfChanged) {
+    if (saveAndNotifyIfChanged && _uploaded) {
       print("saving from offline uploads");
       this.save();
       notifyListeners();

@@ -18,11 +18,8 @@ class UserExercise {
   double weeklyAllowance; //deducted from number
   DateTime latestEdit = DateTime.now();
   bool isVisible = true;
-  bool _uploaded = false;
-
-  bool get isUploaded {
-    return (_uploaded);
-  }
+  bool notDeleted = true;
+  bool uploaded = false;
 
   String get description {
     return (exercise.description);
@@ -36,10 +33,6 @@ class UserExercise {
     return (exercise.checkboxReset);
   }
 
-  set uploaded(bool value) {
-    _uploaded = value;
-  }
-
   UserExercise(this.note, this.exercise, this.points, this.unit,
       {this.title = "",
       this.maxPointsDay = .0,
@@ -49,15 +42,14 @@ class UserExercise {
       this.localId,
       this.userId = "",
       this.latestEdit,
-      this.isVisible = true});
+      this.isVisible = true,
+      this.notDeleted = true});
 
   factory UserExercise.fromJson(Map<String, dynamic> parsedJson, Exercise exercise) {
-    String id;
-    // print(parsedJson);
-    if (parsedJson['id'].toString().length > 0) {
-      id = parsedJson['id'];
-    } else {
-      id = parsedJson['local_id'];
+    String id = misc.getFromJson("id", parsedJson, "") as String;
+    String localId = misc.getFromJson("localId", parsedJson, id) as String;
+    if (localId == null || localId == "" || localId == "null") {
+      throw ("tried to add exercise from json with empty id: $parsedJson");
     }
     String title = misc.getFromJson("title", parsedJson, "") as String;
     if (title == "") {
@@ -72,7 +64,9 @@ class UserExercise {
     double dailyAllowance = misc.getFromJson("daily_allowance", parsedJson, .0) as double;
     double weeklyAllowance = misc.getFromJson("weekly_allowance", parsedJson, .0) as double;
     DateTime latestEdit = DateTime.parse(misc.getFromJson("latest_edit", parsedJson, "2020-01-01 00:00:00.000") as String);
-    bool isVisible = misc.getFromJson("is_visible", parsedJson, true);
+    bool isVisible = misc.getFromJson("is_visible", parsedJson, "true").toString().toLowerCase() == "true";
+    bool notDeleted = misc.getFromJson("not_deleted", parsedJson, "true").toString().toLowerCase() == "true";
+    bool uploaded = misc.getFromJson("uploaded", parsedJson, "true").toString().toLowerCase() == "true";
     UserExercise ex = UserExercise(
       note,
       exercise,
@@ -83,24 +77,19 @@ class UserExercise {
       maxPointsWeek: maxPointsWeek,
       dailyAllowance: dailyAllowance,
       weeklyAllowance: weeklyAllowance,
-      localId: id,
+      localId: localId,
       userId: userId,
       latestEdit: latestEdit,
       isVisible: isVisible,
+      notDeleted: notDeleted,
     );
-    // if (parsedJson['not_deleted'] != null) {
-    //   ex._notDeleted = parsedJson['not_deleted'];
-    // }
-    if (parsedJson['uploaded'] != null) {
-      ex.uploaded = parsedJson['uploaded'];
-    } else {
-      // from api
-      ex.uploaded = true;
-    }
+    ex.userExerciseId = id;
+    ex.uploaded = uploaded;
     return (ex);
   }
 
   factory UserExercise.fromExercise(Exercise exercise) {
+    print("Create UserExercise from exercise ${exercise.localId} (will be uploaded).");
     String id = misc.getRandomString(20);
     UserExercise ex = UserExercise(
       exercise.note,
@@ -117,9 +106,6 @@ class UserExercise {
       latestEdit: exercise.latestEdit,
       isVisible: true,
     );
-    // if (parsedJson['not_deleted'] != null) {
-    //   ex._notDeleted = parsedJson['not_deleted'];
-    // }
     ex.uploaded = false;
     return (ex);
   }
@@ -132,14 +118,15 @@ class UserExercise {
   Map<String, dynamic> toJson() {
     // the Json is sufficient to also create an Exercise from it in the database if there is none created yet.
     if (userExerciseId == null) {
-      userExerciseId = localId;
+      userExerciseId = "";
     }
     return ({
       'id': userExerciseId,
       'local_id': localId,
       'title': title,
       'user_id': userId,
-      'exercise_id': exercise.localId,
+      'exercise_id': exercise.exerciseId,
+      'local_exercise_id': exercise.localId,
       'note': note,
       'description': description,
       'unit': unit,
@@ -152,7 +139,8 @@ class UserExercise {
       'checkbox': isCheckbox,
       'checkbox_reset': checkBoxReset,
       'latest_edit': latestEdit.toIso8601String(),
-      'uploaded': _uploaded,
+      'uploaded': uploaded,
+      'not_deleted': notDeleted,
     });
   }
 
@@ -174,6 +162,7 @@ class UserExercise {
         maxPointsWeek == ex.maxPointsWeek &&
         dailyAllowance == ex.dailyAllowance &&
         weeklyAllowance == ex.weeklyAllowance &&
-        _uploaded == ex._uploaded);
+        uploaded == ex.uploaded &&
+        notDeleted == ex.notDeleted);
   }
 }

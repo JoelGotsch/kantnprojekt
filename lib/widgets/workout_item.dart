@@ -92,15 +92,19 @@ class _WorkoutItemState extends State<WorkoutItem> {
     if (!isValid || _chosenExercise == null || _newAction.number == 0) {
       return;
     }
-    _newAction.exerciseId = _chosenExercise.exercise.localId;
+    _newAction.localExerciseId = _chosenExercise.exercise.localId;
+    _newAction.exerciseId = _chosenExercise.exercise.exerciseId;
     // _newAction.exercise = _chosenExercise.exercise;
     String workoutId = Provider.of<wo.Workout>(context, listen: false).localId;
     print("_addaction workoutId = $workoutId");
-    _newAction.workoutId = workoutId;
+    // _newAction.workoutId = workoutId;
+    if (workoutId == null || workoutId == "") {
+      return;
+    }
     try {
-      Provider.of<wos.Workouts>(context, listen: false).addAction(_newAction);
+      Provider.of<wos.Workouts>(context, listen: false).addAction(_newAction, workoutId);
       // workout.addAction(_newAction);
-      _newAction = wo.Action.create(workoutId: workoutId);
+      _newAction = wo.Action.create();
       _chosenExercise = null;
     } catch (error) {
       await showDialog(
@@ -127,7 +131,7 @@ class _WorkoutItemState extends State<WorkoutItem> {
     // workout = Provider.of<wo.Workout>(context);
     workout = widget.workout;
     _visibleExercises = widget.userExercises;
-    _newAction.workoutId = workout.localId;
+    // _newAction.workoutId = workout.localId;
 
     final double totalHeight = min(workout.actions.length * 45.0 + 100, 900);
     return Card(
@@ -147,7 +151,7 @@ class _WorkoutItemState extends State<WorkoutItem> {
           ),
         ),
         onDismissed: (direction) {
-          Provider.of<wos.Workouts>(context, listen: false).deleteWorkout(workout.localId);
+          Provider.of<wos.Workouts>(context, listen: false).deleteWorkout(workout.localId, true);
         },
         child: Column(children: <Widget>[
           GestureDetector(
@@ -157,7 +161,13 @@ class _WorkoutItemState extends State<WorkoutItem> {
               });
             },
             child: ListTile(
-              title: Text('${widget.workoutPoints.toStringAsFixed(1)} points'),
+              title: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: <Widget>[
+                Text('  ${widget.workoutPoints.toStringAsFixed(1)} points'),
+                Icon(
+                  widget.workout.uploaded ? Icons.backup : Icons.autorenew,
+                  color: Theme.of(context).accentColor,
+                ),
+              ]),
               subtitle: GestureDetector(
                 child: Container(
                   // color: Theme.of(context).accentColor,

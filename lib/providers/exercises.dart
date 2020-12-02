@@ -37,11 +37,11 @@ class Exercises with ChangeNotifier {
   }
 
   Map<String, UserExercise> get exercises {
-    // returns visible UserExercises
+    // returns visible UserExercises which are uploaded (have a non-empty exerciseId)
     print("getting list of visible exercises");
     Map<String, UserExercise> visibleExercises = {};
     _userExercises.forEach((key, value) {
-      if (value.isVisible) {
+      if (value.isVisible && value.userExerciseId != "" && value.userExerciseId != null && value.notDeleted && value.exercise.exerciseId != "") {
         visibleExercises.putIfAbsent(key, () => value);
       }
     });
@@ -69,52 +69,25 @@ class Exercises with ChangeNotifier {
     return (returnList);
   }
 
-  bool addingFromParsed(Map<String, Exercise> exercisesMap, Map<String, UserExercise> userExercisesMap, {saveAndNotifyIfChanged: true}) {
-    // returns true if an exercise or UserExercise was added or updated.
-    // if saveAndNotifyIfChanged is true, then new exercises are saved and NotifyListeners is performed here.
-    bool _addedExercise = false;
-    bool _addedUserExercise = false;
-    try {
-      exercisesMap.forEach((key, ex) {
-        _addedExercise = this.addExercise(ex, saveAndNotifyIfChanged: false) || _addedExercise;
-        // print("added exercise from storage: ${ex.exerciseId}");
-      });
-    } catch (e) {
-      print("Couldn't load parsed exercises. " + e.toString());
-    }
-    try {
-      userExercisesMap.forEach((key, usEx) {
-        _addedUserExercise = this.addUserExercise(usEx, saveAndNotifyIfChanged: false) || _addedUserExercise;
-        // print("added user-exercise from storage: ${usEx.userExerciseId}");
-      });
-    } catch (e) {
-      print("Couldn't load parsed user-exercises. " + e.toString());
-    }
-    if (saveAndNotifyIfChanged && (_addedExercise || _addedUserExercise)) {
-      saveExercises();
-      saveUserExercises();
-      notifyListeners();
-    }
-    return (_addedExercise || _addedUserExercise);
-  }
-
   bool addingFromJson(Map<String, dynamic> exercisesMap, Map<String, dynamic> userExercisesMap, {saveAndNotifyIfChanged: true}) {
     // returns true if an exercise or UserExercise was added or updated.
     // if saveAndNotifyIfChanged is true, then new exercises are saved and NotifyListeners is performed here.
     bool _addedExercise = false;
     bool _addedUserExercise = false;
-    try {
-      exercisesMap.forEach((key, value) {
+    print("adding exercises from json");
+    exercisesMap.forEach((key, value) {
+      try {
         Exercise ex = Exercise.fromJson(value);
         _addedExercise = this.addExercise(ex, saveAndNotifyIfChanged: false) || _addedExercise;
         // print("added exercise from storage: ${ex.exerciseId}");
-      });
-    } catch (e) {
-      print("Couldn't load exercises from Json. " + e.toString());
-    }
+      } catch (e) {
+        print("Couldn't load exercises from Json. " + e.toString());
+      }
+    });
     try {
       userExercisesMap.forEach((key, value) {
         try {
+          // print("ex from json: $key: $value");
           Exercise ex = this.getExercise(value["exercise_id"]);
           UserExercise usEx = UserExercise.fromJson(value, ex);
           _addedUserExercise = this.addUserExercise(usEx, saveAndNotifyIfChanged: false) || _addedUserExercise;
@@ -137,6 +110,7 @@ class Exercises with ChangeNotifier {
 
   Future<bool> addingFromStorage({bool saveAndNotifyIfChanged = false}) async {
     bool addedExercise = false;
+    print("adding exercises from storage");
     try {
       final prefs = await SharedPreferences.getInstance();
       Map<String, dynamic> exercisesMap = json.decode(prefs.getString("Exercises"));
@@ -184,7 +158,6 @@ class Exercises with ChangeNotifier {
     List<String> serverNewExIds = [];
     List<String> deledtedExIds = [];
     List<String> deledtedUserExIds = [];
-    // TODO: backend accepting lists of exercise ids
     try {
       exerciseEditDates = await this.fetchHeaders();
       if (!exerciseEditDates.containsKey("common_exercises")) {
@@ -197,9 +170,12 @@ class Exercises with ChangeNotifier {
           Exercise ex = _exercises[exId];
           if (ex.latestEdit.compareTo(exLatestEdit) < 0) {
             // exLatestEdit is later => info on server is newer
+            print("Found newer version of exercise $exId on server: server: ${exLatestEdit.toIso8601String()} vs local ${ex.latestEdit.toIso8601String()}");
             serverNewExIds.add(exId);
           } else if (ex.latestEdit.compareTo(exLatestEdit) > 0) {
-            if (ex.isUploaded) {
+            print("Found newer version of exercise $exId on phone: server: ${exLatestEdit.toIso8601String()} vs local ${ex.latestEdit.toIso8601String()}");
+            if (ex.uploaded) {
+              print("ERROR: exercise should be newer on the phone, but it is already uploaded???");
               ex.uploaded = false;
             }
           }
@@ -210,21 +186,26 @@ class Exercises with ChangeNotifier {
       });
       // now deleting all the exercises which were deleted on the server:
       _exercises.forEach((exId, ex) {
-        if (!exerciseEditDates["common_exercises"].containsKey(exId) && ex.isUploaded) {
-          deledtedExIds.add(exId); //TODO: What to do with deleted exercises? Delete also associated UserExercises?
+        if (!exerciseEditDates["common_exercises"].containsKey(exId) && ex.uploaded) {
+          deledtedExIds.add(exId);
         }
       });
       deledtedExIds.forEach((key) {
-        _exercises.remove(key);
+        print("removing exercise $key and associated user-exercise because it is deleted on the server.");
+        _deleteExercise(key);
       });
       exerciseEditDates["user_exercises"].forEach((exId, exLatestEdit) {
         if (_userExercises.containsKey(exId)) {
           UserExercise ex = _userExercises[exId];
           if (ex.latestEdit.compareTo(exLatestEdit) < 0) {
             // exLatestEdit is later => info on server is newer
+            print(
+                "Found newer version of user-exercise $exId on server: server: ${exLatestEdit.toIso8601String()} vs local ${ex.latestEdit.toIso8601String()}");
             serverNewUserExIds.add(exId);
           } else if (ex.latestEdit.compareTo(exLatestEdit) > 0) {
-            if (ex.isUploaded) {
+            print("Found newer version of user-exercise $exId on phone: server: ${exLatestEdit.toIso8601String()} vs local ${ex.latestEdit.toIso8601String()}");
+            if (ex.uploaded) {
+              print("ERROR: user-exercise should be newer on the phone, but it is already uploaded???");
               ex.uploaded = false;
             }
           }
@@ -232,23 +213,25 @@ class Exercises with ChangeNotifier {
           serverNewUserExIds.add(exId);
         }
       });
-      _userExercises.forEach((exId, ex) {
-        if (!exerciseEditDates["user_exercises"].containsKey(exId) && ex.isUploaded) {
-          deledtedUserExIds.add(exId); //TODO: What to do with deleted exercises? Delete also associated UserExercises?
+      // now deleting all the user-exercises which were deleted on the server (except where their exercise was deleted, those are deleted from the exercise already):
+      _userExercises.forEach((exId, usEx) {
+        if ((!exerciseEditDates["user_exercises"].containsKey(exId) && usEx.uploaded) && !deledtedExIds.contains(usEx.exercise.localId)) {
+          deledtedUserExIds.add(exId);
         }
       });
       deledtedUserExIds.forEach((key) {
-        _userExercises.remove(key);
+        print("removing user-exercise $key because it is deleted on the server.");
+        deleteUserExercise(key, false, saveAndNotifyIfChanged: false);
       });
 
       Map<String, Map<String, dynamic>> newExercises = await this._fetch(userExerciseIds: serverNewUserExIds, exerciseIds: serverNewExIds);
-      addedExercise = addingFromParsed(newExercises["common_exercises"], newExercises["user_exercises"], saveAndNotifyIfChanged: false);
+      addedExercise = addingFromJson(newExercises["common_exercises"], newExercises["user_exercises"], saveAndNotifyIfChanged: false);
       loadedOnlineExercises = true;
       lastRefresh = DateTime.now();
       // print(exerciseEditDates);
       // check which editDates dont match with saved ones and get newer ones from server and post (send) if newer from app.
-    } catch (Exception) {
-      print("Error in syncronize Exercises: $Exception");
+    } catch (e) {
+      print("Error in syncronize Exercises: $e");
     }
     // this.fetchNew();
     if (saveAndNotifyIfChanged) {
@@ -258,17 +241,19 @@ class Exercises with ChangeNotifier {
       }
     }
 
-    addedExercise = await _uploadOfflineExercises() || addedExercise;
+    addedExercise = await uploadOfflineExercises() || addedExercise;
     loadingOnlineExercises = false;
     return (addedExercise);
   }
 
   Future<void> saveExercises() async {
+    print("saving exercises");
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString("Exercises", this.exercisesToString());
   }
 
   Future<void> saveUserExercises() async {
+    print("saving user-exercises");
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString("UserExercises", this.userExercisesToString(allUserExercises: true));
   }
@@ -281,8 +266,8 @@ class Exercises with ChangeNotifier {
   Future<Map<String, Map<String, dynamic>>> _fetch(
       {String exerciseId, int number = 0, DateTime minEditDate, List<String> userExerciseIds, List<String> exerciseIds}) async {
 // helper function to get data via API
-    Map<String, Exercise> newExercises = {};
-    Map<String, UserExercise> newUserExercises = {};
+    Map<String, dynamic> newExercises = {};
+    Map<String, dynamic> newUserExercises = {};
     Map<String, Map<String, dynamic>> returnMap = {};
     Map<String, String> queryParameters = {};
     if (exerciseId != null) {
@@ -324,37 +309,11 @@ class Exercises with ChangeNotifier {
     if (response.statusCode == 201 || response.statusCode == 200) {
       print("adding common exercises");
       // print(result["common_exercises"]);
-      for (Map json_ in (result["common_exercises"] as Map<String, dynamic>).values.toList()) {
-        // for (Map json_ in result.values) {
-        try {
-          newExercises.putIfAbsent(json_["id"], () => Exercise.fromJson(json_));
-        } catch (Exception) {
-          print(Exception);
-        }
-      }
-      print("adding user exercises");
-      // print(result["user_exercises"]);
-      for (Map json_ in (result["user_exercises"] as Map<String, dynamic>).values.toList()) {
-        // for (Map json_ in result.values) {
-        try {
-          Exercise ex;
-          String exId = json_["exercise_id"];
-          if (newExercises.containsKey(exId)) {
-            ex = newExercises[exId];
-          } else if (_exercises.containsKey(exId)) {
-            ex = _exercises[exId];
-          } else {
-            throw (Exception("Couldn't find exercise id $exId"));
-          }
-
-          newUserExercises.putIfAbsent(json_["id"], () => UserExercise.fromJson(json_, ex));
-        } catch (Exception) {
-          print(Exception);
-        }
-      }
+      newExercises = result["data"]["common_exercises"] as Map<String, dynamic>;
+      newUserExercises = result["data"]["user_exercises"] as Map<String, dynamic>;
     } else {
       // If that call was not successful, throw an error.
-      throw Exception('Failed to load Exercises: ');
+      throw Exception('Failed to load Exercises: ${response.body}');
     }
     returnMap.putIfAbsent("common_exercises", () => newExercises);
     returnMap.putIfAbsent("user_exercises", () => newUserExercises);
@@ -387,10 +346,10 @@ class Exercises with ChangeNotifier {
       print("result in fetching exercise headers: $result");
       if (response.statusCode == 201 || response.statusCode == 200) {
         // for (Map json_ in result["data"]) {
-        result["common_exercises"].forEach((key, value) {
+        result["data"]["common_exercises"].forEach((key, value) {
           commonExercises.putIfAbsent(key, () => DateTime.parse(value));
         });
-        result["user_exercises"].forEach((key, value) {
+        result["data"]["user_exercises"].forEach((key, value) {
           userExercises.putIfAbsent(key, () => DateTime.parse(value));
         });
         returnMap.putIfAbsent("common_exercises", () => commonExercises);
@@ -401,16 +360,15 @@ class Exercises with ChangeNotifier {
         throw Exception('Failed to load exercise headers ' + result["message"]);
       }
     } catch (e) {
-      print("Problem while fetching last edit dates of exerises: Status Code ${response.statusCode}, " + e.toString());
+      throw ("Problem while fetching last edit dates of exerises: Response: ${response.body}, error:" + e.toString());
     }
-    return (returnMap);
   }
 
   Future<void> fetchNew() async {
     this.setLastRefresh();
     print("fetching new exercises since $lastRefresh");
     Map<String, Map<String, dynamic>> newExercises = await this._fetch(minEditDate: lastRefresh);
-    addingFromParsed(newExercises["common_exercises"], newExercises["user_exercises"], saveAndNotifyIfChanged: true);
+    addingFromJson(newExercises["common_exercises"], newExercises["user_exercises"], saveAndNotifyIfChanged: true);
     print("fetched new exercises");
     lastRefresh = DateTime.now();
   }
@@ -420,25 +378,39 @@ class Exercises with ChangeNotifier {
     if (_exercises.containsKey(exerciseId)) {
       ex = _exercises[exerciseId];
     } else {
-      //TODO: download exercise; shouldn't happen so far anyways as in this case the exercise is sent as part of the workout!
+      _exercises.forEach((key, ex2) {
+        if (ex2.localId == exerciseId || ex2.exerciseId == exerciseId) {
+          ex = ex2;
+        }
+      });
+    }
+    if (ex == null) {
       throw Exception("Tried to access exerciseID " + exerciseId.toString() + " which is not known. Maybe forgot to initialize the exercise object?");
     }
     return (ex);
+  }
+
+  bool exerciseInList(String exerciseId) {
+    // returns true if exerciseId can be found as either localId or exerciseId in _exercises
+    bool returnval = false;
+    try {
+      Exercise ex = getExercise(exerciseId);
+      if (ex != null) {
+        returnval = true;
+      }
+    } catch (e) {
+      returnval = false;
+    }
+    return (returnval);
   }
 
   UserExercise getUserExercise(String exerciseId) {
     UserExercise ex;
     if (_userExercises.containsKey(exerciseId)) {
       ex = _userExercises[exerciseId];
-    } else if (_exercises.containsKey(exerciseId)) {
-      _userExercises.forEach((key, usEx) {
-        if (usEx.exercise.localId == exerciseId) {
-          ex = usEx;
-        }
-      });
     } else {
       _userExercises.forEach((key, usEx) {
-        if (usEx.localId == exerciseId) {
+        if (usEx.userExerciseId == exerciseId || usEx.exercise.localId == exerciseId || usEx.exercise.exerciseId == exerciseId) {
           ex = usEx;
         }
       });
@@ -450,15 +422,29 @@ class Exercises with ChangeNotifier {
     return (ex);
   }
 
-  Future<bool> _uploadOfflineExercises({bool saveAndNotifyIfChanged = false}) async {
+  bool userExerciseInList(String exerciseId) {
+    // returns true if exerciseId can be found as either localId or exerciseId in _userExercises or if one of their exercises has this id.
+    bool returnval = false;
+    try {
+      UserExercise ex = getUserExercise(exerciseId);
+      if (ex != null) {
+        returnval = true;
+      }
+    } catch (e) {
+      returnval = false;
+    }
+    return (returnval);
+  }
+
+  Future<bool> uploadOfflineExercises({bool saveAndNotifyIfChanged = false}) async {
     // returns true if at least one exercise was uploaded.
     // tries to upload all not uploaded workouts and updates the Ids, then saves to shared_preferences
     Map<String, UserExercise> offlineUserExercises = {};
     bool _uploaded = false;
     http.Response response;
-    _userExercises.forEach((key, value) {
-      if (!value.isUploaded) {
-        offlineUserExercises.putIfAbsent(key, () => value);
+    _userExercises.forEach((key, usEx) {
+      if (!usEx.uploaded) {
+        offlineUserExercises.putIfAbsent(key, () => usEx);
         print("UserExercise $key is not uploaded yet. Will be synced now.");
       }
     });
@@ -474,28 +460,37 @@ class Exercises with ChangeNotifier {
             // "user_id": _userId,
           },
           body: helper);
-      final result = json.decode(response.body) as Map<String, Map<String, String>>; //localId:workoutId
+      dynamic result2 = json.decode(response.body);
+      // Map<String, Map<String, String>> result = result2["data"] as Map<String, Map<String, String>>; //localId:workoutId
+      dynamic result = result2["data"];
       print(response.statusCode);
       if (response.statusCode == 201 || response.statusCode == 200) {
         result["user_exercises"].forEach((_localId, _userExerciseId) {
+          String localId = _localId.toString();
+          String userExerciseId = _userExerciseId.toString();
           _uploaded = true;
-          UserExercise usEx = _userExercises[_localId];
-          usEx.userExerciseId = _userExerciseId;
-          usEx.localId = _userExerciseId;
-          usEx.uploaded = true;
-          if (_localId != _userExerciseId) {
-            _userExercises.removeWhere((key, value) => key == _localId);
-            _userExercises[_userExerciseId] = usEx;
-          }
-          if (result["common_exercises"][_localId] != null) {
-            Exercise ex = usEx.exercise;
-            if (ex.exerciseId != result["common_exercises"][_localId]) {
-              String oldLocalId = ex.localId;
-              ex.exerciseId = result["common_exercises"][_localId];
-              ex.localId = result["common_exercises"][_localId];
-              _exercises.removeWhere((key, value) => key == oldLocalId);
-              _exercises[ex.exerciseId] = ex;
+          UserExercise usEx = getUserExercise(localId);
+          if ((userExerciseId == null || userExerciseId == "null" || userExerciseId == "") && !usEx.notDeleted) {
+// UserExercise was deleted, the server was informed and acknowledged
+            deleteUserExercise(localId, false, saveAndNotifyIfChanged: false);
+          } else if (usEx.notDeleted) {
+            print("uploaded user-exercise ${usEx.localId}, got id $userExerciseId");
+            usEx.userExerciseId = userExerciseId;
+            usEx.uploaded = true;
+            if (result["common_exercises"][localId] != null) {
+              // a new exercise was created; update the id as stored on server.
+
+              Exercise ex = usEx.exercise;
+              String exerciseId = result["common_exercises"][localId];
+              if (ex.exerciseId != exerciseId) {
+                ex.exerciseId = exerciseId;
+                print("uploaded exercise ${ex.localId}, got id $exerciseId");
+                ex.uploaded = true;
+              }
             }
+          } else {
+            print("ERROR: userExercise is not deleted but id came back empty: $usEx");
+            print("$userExerciseId");
           }
         });
       } else {
@@ -517,14 +512,12 @@ class Exercises with ChangeNotifier {
     // if an exercise with the same id is found, then it is just updated.
     // Only the note of the exercise can change! Otherwise it is needed to create a new Exercise.
     bool _exerciseAdded = false;
-    if (_exercises.containsKey(ex.localId) || _exercises.containsKey(ex.exerciseId)) {
+    if (ex.localId == "" || ex.localId == null) {
+      throw ("Tried to add invalid exercise: $ex");
+    }
+    try {
       // update existing workout
-      Exercise oldEx;
-      if (_exercises.containsKey(ex.localId)) {
-        oldEx = _exercises[ex.localId];
-      } else {
-        oldEx = _exercises[ex.exerciseId];
-      }
+      Exercise oldEx = getExercise(ex.localId);
       if (oldEx.note != ex.note) {
         print("updating exercise ${ex.localId}");
         oldEx.note = ex.note;
@@ -533,14 +526,15 @@ class Exercises with ChangeNotifier {
       } else {
         print("Tried to add existing Exercise with the same note.");
       }
-    } else {
+    } catch (e) {
+      // oldEx doesn't exist
       _exercises.putIfAbsent(ex.localId, () => ex);
       print("added exercise ${ex.localId}");
       _exerciseAdded = true;
     }
     if (saveAndNotifyIfChanged && _exerciseAdded) {
-      if (!ex.isUploaded) {
-        this._uploadOfflineExercises();
+      if (!ex.uploaded) {
+        this.uploadOfflineExercises();
       }
       this.saveExercises();
       notifyListeners();
@@ -548,19 +542,30 @@ class Exercises with ChangeNotifier {
     return (_exerciseAdded);
   }
 
+  void _deleteExercise(String exerciseId) {
+    // this method must only be called from syncronize as the frontend-user cant delete an exercise, only the backend can.
+    print("Deleting exercise $exerciseId");
+    if (exerciseId == null)
+      try {
+        Exercise ex = getExercise(exerciseId);
+        _exercises.remove(ex.localId);
+        if (this.userExerciseInList(exerciseId)) {
+          UserExercise usEx = getUserExercise(exerciseId);
+          deleteUserExercise(usEx.localId, false);
+        }
+      } catch (e) {
+        print("Couldn't delete Exercise $exerciseId");
+      }
+  }
+
   bool addUserExercise(UserExercise usEx, {bool saveAndNotifyIfChanged = false}) {
     // returns true if an Exercise was added or changed.
     // if an exercise with the same id is found, then it is just updated.
     // Only the note of the exercise can change! Otherwise it is needed to create a new Exercise.
     bool _exerciseAdded = false;
-    if (_userExercises.containsKey(usEx.localId) || _userExercises.containsKey(usEx.userExerciseId)) {
+    if (userExerciseInList(usEx.localId)) {
       // update existing workout
-      UserExercise oldEx;
-      if (_userExercises.containsKey(usEx.localId)) {
-        oldEx = _userExercises[usEx.localId];
-      } else {
-        oldEx = _userExercises[usEx.userExerciseId];
-      }
+      UserExercise oldEx = getUserExercise(usEx.localId);
       if (!oldEx.equals(usEx)) {
         print("updating user-exercise ${usEx.localId}");
         _userExercises.putIfAbsent(usEx.localId, () => usEx);
@@ -573,19 +578,45 @@ class Exercises with ChangeNotifier {
       }
     } else {
       print("adding user-exercise ${usEx.localId}");
-      _userExercises[usEx.localId] = usEx;
+      _userExercises.putIfAbsent(usEx.localId, () => usEx);
       _exerciseAdded = true;
       if (saveAndNotifyIfChanged) {
         notifyListeners();
       }
     }
     if (saveAndNotifyIfChanged) {
-      if (!usEx.isUploaded) {
-        this._uploadOfflineExercises();
+      if (!usEx.uploaded) {
+        this.uploadOfflineExercises();
       }
       this.saveUserExercises();
     }
     return (_exerciseAdded);
+  }
+
+  void deleteUserExercise(String exerciseId, bool upload, {bool saveAndNotifyIfChanged = false}) {
+    print("Deleting user-exercise $exerciseId, and upload = $upload");
+    // if
+    try {
+      UserExercise usEx = getUserExercise(exerciseId);
+      usEx.notDeleted = false;
+      usEx.uploaded = false;
+      if (upload && usEx.userExerciseId != "" && usEx.userExerciseId != null) {
+        // this is run only if the exercise + userexercise were already uploaded and the user deletes the userexercise
+        this.uploadOfflineExercises(saveAndNotifyIfChanged: saveAndNotifyIfChanged);
+      } else {
+        _userExercises.remove(usEx.localId);
+        if (usEx.exercise.exerciseId == "" || usEx.exercise.exerciseId == null) {
+          _deleteExercise(usEx.exercise.localId);
+        }
+        if (saveAndNotifyIfChanged) {
+          print("saving from deleteUserexercise");
+          this.save();
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      print("Couldn't delete UserExercise $exerciseId: $e");
+    }
   }
 
   void updateUserExercise(String id,
@@ -628,33 +659,24 @@ class Exercises with ChangeNotifier {
       somethingChanged = true;
       usEx.note = note;
     }
-    if (uploaded != null && uploaded != usEx.isUploaded) {
+    if (uploaded != null && uploaded != usEx.uploaded) {
       somethingChanged = true;
-      usEx.note = note;
+      usEx.uploaded = uploaded;
     }
     if (latestEdit == null && somethingChanged) {
       latestEdit = DateTime.now();
       usEx.latestEdit = latestEdit;
-      print("Test - latest edit date was null. good.");
-      this._uploadOfflineExercises();
+      print("updated user-exercise: $latestEdit");
+      this.uploadOfflineExercises();
       this.saveUserExercises();
     } else if (latestEdit != null) {
       usEx.latestEdit = latestEdit;
-      this._uploadOfflineExercises();
+      this.uploadOfflineExercises();
       this.saveUserExercises();
-      print("Problem - not null at beginning.");
+      print("updated user-exercise");
     }
   }
 
-  // void deleteExercise(String id) {
-  //   Exercise ex = _exercises[id];
-  //   ex.notDeleted = false;
-  //   ex.uploaded = false;
-  //   // _exercises.removeWhere(
-  //   //     (key, value) => value.exerciseId == id || value.localId == id);
-  //   notifyListeners();
-  //   this._uploadOfflineExercises();
-  // }
   Map<String, dynamic> exercisesToJson({Map<String, Exercise> exerciseMap}) {
     // contains all workouts by default, if set to false, only the not deleted ones are returned
     Map<String, dynamic> helper = {};
