@@ -19,7 +19,7 @@ class User with ChangeNotifier {
   final String uri = 'http://api.kantnprojekt.club/v0_1/user';
 
   bool get isAuth {
-    return token != null;
+    return (token != null && token != "");
   }
 
   String get token {
@@ -38,8 +38,7 @@ class User with ChangeNotifier {
     return _email;
   }
 
-  Future<void> _authenticate(String email, String password, String actionName,
-      {String userName = "", String oldPassword = ""}) async {
+  Future<void> _authenticate(String email, String password, String actionName, {String userName = "", String oldPassword = ""}) async {
     try {
       final response = await http.post(
         uri,
@@ -89,10 +88,8 @@ class User with ChangeNotifier {
     return _authenticate(email, password, 'login');
   }
 
-  Future<void> resetPassword(
-      String email, String newPassword, String oldPassword) async {
-    return _authenticate(email, newPassword, 'reset_password',
-        oldPassword: oldPassword);
+  Future<void> resetPassword(String email, String newPassword, String oldPassword) async {
+    return _authenticate(email, newPassword, 'reset_password', oldPassword: oldPassword);
   }
 
   Future<bool> tryAutoLogin() async {
@@ -100,8 +97,7 @@ class User with ChangeNotifier {
     if (!prefs.containsKey('userData')) {
       return false;
     }
-    final extractedUserData =
-        json.decode(prefs.getString('userData')) as Map<String, Object>;
+    final extractedUserData = json.decode(prefs.getString('userData')) as Map<String, Object>;
 
     _token = extractedUserData['token'];
     _userName = extractedUserData['userName'];
@@ -112,15 +108,16 @@ class User with ChangeNotifier {
   }
 
   Future<void> logout() async {
-    _token = null;
-    _userName = null;
-    _email = null;
-    _userId = null;
-    notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     prefs.remove('userData');
     prefs.remove('Workouts');
     prefs.remove('Exercises');
+    prefs.remove('UserExercises');
+    _token = "";
+    _userName = null;
+    _email = null;
+    _userId = null;
+    notifyListeners();
     // prefs.clear();
   }
 }

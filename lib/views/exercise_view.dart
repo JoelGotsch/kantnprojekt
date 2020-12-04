@@ -107,6 +107,7 @@ class _ExercisesOverviewScreenState extends State<ExercisesOverviewScreen> {
             ex.Exercise exercise = ex.Exercise.newWithUserId(userId); // set uploaded to true so that the empty exercise is not uploaded!
             usEx.UserExercise userExercise = usEx.UserExercise.fromExercise(exercise);
             userExercise.uploaded = true;
+            exercise.uploaded = true;
             Provider.of<exs.Exercises>(context, listen: false).addExercise(exercise, saveAndNotifyIfChanged: false);
             Provider.of<exs.Exercises>(context, listen: false).addUserExercise(userExercise, saveAndNotifyIfChanged: true); // rebuilding the list
           },

@@ -46,6 +46,8 @@ class _WorkoutsOverviewScreenState extends State<WorkoutsOverviewScreen> {
     print("building WorkoutsOverviewScreen.");
     final workoutsData = Provider.of<wos.Workouts>(context);
     final List<wo.Workout> sortedWorkouts = workoutsData.sortedWorkouts;
+    print("workouts _loading: ${workoutsData.loadingOnlineWorkouts}, ${workoutsData.exercises.loadedOnlineExercises}");
+    _isLoading = workoutsData.loadingOnlineWorkouts || !workoutsData.exercises.loadedOnlineExercises;
     final Map<String, wo.Workout> workouts = workoutsData.workouts;
     final Map<String, UserExercise> usExs = Provider.of<Exercises>(context).userExercises;
     final Map<String, UserExercise> visibleUsExs = Provider.of<Exercises>(context).exercises;

@@ -145,7 +145,7 @@ class WorkoutOverviews extends ChangeNotifier {
       }
     });
     if (usEx == null) {
-      print("Error: couldn't find exerciseId ${action.exerciseId} in list of userExercises.");
+      print("Error: couldn't find exerciseId ${action.localExerciseId} in list of userExercise-Exercises.");
       return (false);
     }
 

@@ -6,7 +6,7 @@ class UserExercise {
   String userExerciseId;
   // String exerciseId; //from database, provided by API
   final Exercise exercise;
-  String title;
+  // String title;
   String localId = misc.getRandomString(20);
   String note;
   final String userId;
@@ -34,7 +34,8 @@ class UserExercise {
   }
 
   UserExercise(this.note, this.exercise, this.points, this.unit,
-      {this.title = "",
+      {
+      // this.title = "",
       this.maxPointsDay = .0,
       this.maxPointsWeek = .0,
       this.dailyAllowance = .0,
@@ -51,10 +52,7 @@ class UserExercise {
     if (localId == null || localId == "" || localId == "null") {
       throw ("tried to add exercise from json with empty id: $parsedJson");
     }
-    String title = misc.getFromJson("title", parsedJson, "") as String;
-    if (title == "") {
-      throw ("Invalid json!");
-    }
+    // String title = misc.getFromJson("title", parsedJson, "") as String;
     String unit = misc.getFromJson("unit", parsedJson, "") as String;
     String note = misc.getFromJson("note", parsedJson, "") as String;
     String userId = misc.getFromJson("user_id", parsedJson, "") as String;
@@ -72,7 +70,7 @@ class UserExercise {
       exercise,
       points,
       unit,
-      title: title,
+      // title: exercise.title,
       maxPointsDay: maxPointsDay,
       maxPointsWeek: maxPointsWeek,
       dailyAllowance: dailyAllowance,
@@ -96,7 +94,7 @@ class UserExercise {
       exercise,
       exercise.points,
       exercise.unit,
-      title: exercise.title,
+      // title: exercise.title,
       maxPointsDay: exercise.maxPointsDay,
       maxPointsWeek: exercise.maxPointsWeek,
       dailyAllowance: exercise.dailyAllowance,
@@ -123,7 +121,7 @@ class UserExercise {
     return ({
       'id': userExerciseId,
       'local_id': localId,
-      'title': title,
+      // 'title': title,
       'user_id': userId,
       'exercise_id': exercise.exerciseId,
       'local_exercise_id': exercise.localId,
@@ -153,7 +151,7 @@ class UserExercise {
     // returns true if everything, including the ids match
     return (exercise.equals(ex.exercise) &&
         localId == ex.localId &&
-        title == ex.title &&
+        // title == ex.title &&
         note == ex.note &&
         unit == ex.unit &&
         userId == ex.userId &&
@@ -164,5 +162,9 @@ class UserExercise {
         weeklyAllowance == ex.weeklyAllowance &&
         uploaded == ex.uploaded &&
         notDeleted == ex.notDeleted);
+  }
+
+  String get title {
+    return (exercise.title);
   }
 }

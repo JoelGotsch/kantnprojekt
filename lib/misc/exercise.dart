@@ -42,6 +42,9 @@ class Exercise {
     String id = misc.getFromJson("id", parsedJson, "") as String;
     String localId = misc.getFromJson("localId", parsedJson, id) as String;
     String title = misc.getFromJson("title", parsedJson, "") as String;
+    if (title == "") {
+      throw ("Invalid json!");
+    }
     String note = misc.getFromJson("note", parsedJson, "") as String;
     String unit = misc.getFromJson("unit", parsedJson, "") as String;
     String description = misc.getFromJson("description", parsedJson, "") as String;

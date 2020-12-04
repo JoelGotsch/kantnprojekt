@@ -32,6 +32,9 @@ class Exercises with ChangeNotifier {
     if (token != "" && !previousExercises.loadedOnlineExercises && !previousExercises.loadingOnlineExercises) {
       previousExercises.loadingOnlineExercises = true;
       previousExercises.setup();
+    } else if (token == "") {
+      // on logout, token is set to ""
+      previousExercises = Exercises.create();
     }
     return (previousExercises);
   }
@@ -131,7 +134,7 @@ class Exercises with ChangeNotifier {
   void setup() async {
     await addingFromStorage(saveAndNotifyIfChanged: false);
     bool addedExercise = await syncronize(saveAndNotifyIfChanged: false);
-    print("Setup completed, now notifying listeners");
+    print("Exercises setup completed, now notifying listeners");
     if (addedExercise) {
       this.saveExercises();
       this.saveUserExercises();
@@ -156,8 +159,8 @@ class Exercises with ChangeNotifier {
     Map<String, Map<String, DateTime>> exerciseEditDates = {};
     List<String> serverNewUserExIds = [];
     List<String> serverNewExIds = [];
-    List<String> deledtedExIds = [];
-    List<String> deledtedUserExIds = [];
+    List<String> deletedExIds = [];
+    List<String> deletedUserExIds = [];
     try {
       exerciseEditDates = await this.fetchHeaders();
       if (!exerciseEditDates.containsKey("common_exercises")) {
@@ -165,9 +168,9 @@ class Exercises with ChangeNotifier {
         return (false);
       }
       exerciseEditDates["common_exercises"].forEach((exId, exLatestEdit) {
-        if (_exercises.containsKey(exId)) {
+        if (existsExercise(exId)) {
           //maybe an update?
-          Exercise ex = _exercises[exId];
+          Exercise ex = getExercise(exId);
           if (ex.latestEdit.compareTo(exLatestEdit) < 0) {
             // exLatestEdit is later => info on server is newer
             print("Found newer version of exercise $exId on server: server: ${exLatestEdit.toIso8601String()} vs local ${ex.latestEdit.toIso8601String()}");
@@ -185,18 +188,18 @@ class Exercises with ChangeNotifier {
         }
       });
       // now deleting all the exercises which were deleted on the server:
-      _exercises.forEach((exId, ex) {
-        if (!exerciseEditDates["common_exercises"].containsKey(exId) && ex.uploaded) {
-          deledtedExIds.add(exId);
+      commonExercises.forEach((exId, ex) {
+        if (!exerciseEditDates["common_exercises"].containsKey(ex.exerciseId) && ex.uploaded) {
+          deletedExIds.add(exId);
         }
       });
-      deledtedExIds.forEach((key) {
+      deletedExIds.forEach((key) {
         print("removing exercise $key and associated user-exercise because it is deleted on the server.");
         _deleteExercise(key);
       });
       exerciseEditDates["user_exercises"].forEach((exId, exLatestEdit) {
-        if (_userExercises.containsKey(exId)) {
-          UserExercise ex = _userExercises[exId];
+        if (existsUserExercise(exId)) {
+          UserExercise ex = getUserExercise(exId);
           if (ex.latestEdit.compareTo(exLatestEdit) < 0) {
             // exLatestEdit is later => info on server is newer
             print(
@@ -214,12 +217,12 @@ class Exercises with ChangeNotifier {
         }
       });
       // now deleting all the user-exercises which were deleted on the server (except where their exercise was deleted, those are deleted from the exercise already):
-      _userExercises.forEach((exId, usEx) {
-        if ((!exerciseEditDates["user_exercises"].containsKey(exId) && usEx.uploaded) && !deledtedExIds.contains(usEx.exercise.localId)) {
-          deledtedUserExIds.add(exId);
+      userExercises.forEach((exId, usEx) {
+        if ((!exerciseEditDates["user_exercises"].containsKey(usEx.userExerciseId) && usEx.uploaded) && !deletedExIds.contains(usEx.exercise.localId)) {
+          deletedUserExIds.add(exId);
         }
       });
-      deledtedUserExIds.forEach((key) {
+      deletedUserExIds.forEach((key) {
         print("removing user-exercise $key because it is deleted on the server.");
         deleteUserExercise(key, false, saveAndNotifyIfChanged: false);
       });
@@ -390,7 +393,7 @@ class Exercises with ChangeNotifier {
     return (ex);
   }
 
-  bool exerciseInList(String exerciseId) {
+  bool existsExercise(String exerciseId) {
     // returns true if exerciseId can be found as either localId or exerciseId in _exercises
     bool returnval = false;
     try {
@@ -422,7 +425,7 @@ class Exercises with ChangeNotifier {
     return (ex);
   }
 
-  bool userExerciseInList(String exerciseId) {
+  bool existsUserExercise(String exerciseId) {
     // returns true if exerciseId can be found as either localId or exerciseId in _userExercises or if one of their exercises has this id.
     bool returnval = false;
     try {
@@ -549,7 +552,7 @@ class Exercises with ChangeNotifier {
       try {
         Exercise ex = getExercise(exerciseId);
         _exercises.remove(ex.localId);
-        if (this.userExerciseInList(exerciseId)) {
+        if (this.existsUserExercise(exerciseId)) {
           UserExercise usEx = getUserExercise(exerciseId);
           deleteUserExercise(usEx.localId, false);
         }
@@ -563,7 +566,7 @@ class Exercises with ChangeNotifier {
     // if an exercise with the same id is found, then it is just updated.
     // Only the note of the exercise can change! Otherwise it is needed to create a new Exercise.
     bool _exerciseAdded = false;
-    if (userExerciseInList(usEx.localId)) {
+    if (existsUserExercise(usEx.localId)) {
       // update existing workout
       UserExercise oldEx = getUserExercise(usEx.localId);
       if (!oldEx.equals(usEx)) {
@@ -580,15 +583,14 @@ class Exercises with ChangeNotifier {
       print("adding user-exercise ${usEx.localId}");
       _userExercises.putIfAbsent(usEx.localId, () => usEx);
       _exerciseAdded = true;
-      if (saveAndNotifyIfChanged) {
+    }
+    if (saveAndNotifyIfChanged && _exerciseAdded) {
+      if (!usEx.uploaded) {
+        this.uploadOfflineExercises(saveAndNotifyIfChanged: saveAndNotifyIfChanged);
+      } else {
+        this.saveUserExercises();
         notifyListeners();
       }
-    }
-    if (saveAndNotifyIfChanged) {
-      if (!usEx.uploaded) {
-        this.uploadOfflineExercises();
-      }
-      this.saveUserExercises();
     }
     return (_exerciseAdded);
   }
@@ -742,7 +744,7 @@ class Exercises with ChangeNotifier {
     _notify = deleteExercises.length > 0 || deleteUserExercises.length > 0;
     if (_notify) {
       save();
-      notifyListeners();
     }
+    notifyListeners();
   }
 }

@@ -90,7 +90,7 @@ class _ExerciseItemState extends State<ExerciseItem> {
           userId: Provider.of<User>(context, listen: false).userId);
       UserExercise usEx = UserExercise.fromExercise(ex);
       Provider.of<Exercises>(context, listen: false).addExercise(ex, saveAndNotifyIfChanged: false);
-      Provider.of<Exercises>(context, listen: false).addUserExercise(usEx, saveAndNotifyIfChanged: false);
+      Provider.of<Exercises>(context, listen: false).addUserExercise(usEx, saveAndNotifyIfChanged: true);
       Provider.of<Exercises>(context, listen: false).cleanEmptyExercises();
       print("userExercise saved: $usEx");
       print(usEx.toString());

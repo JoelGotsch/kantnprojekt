@@ -34,8 +34,16 @@ class Workouts with ChangeNotifier {
 
   factory Workouts.fromPrevious(Exercises exs, Workouts previousWorkouts) {
     print("Workouts.fromPrevious is run.");
+    if (exs.token == "" || exs.token == null) {
+      // on logout, token is set to null
+      previousWorkouts = Workouts.create();
+      return (previousWorkouts);
+    }
     previousWorkouts._token = exs.token;
-    if (previousWorkouts._token != "" && !previousWorkouts.loadedOnlineWorkouts && !previousWorkouts.loadingOnlineWorkouts) {
+    // dont save new exercises yet, as the old ones are needed to compare to news for action updates
+    print(
+        "workouts from previous ${exs.token}, ${!previousWorkouts.loadedOnlineWorkouts}, ${!previousWorkouts.loadingOnlineWorkouts}, ${exs.loadedOnlineExercises}");
+    if (exs.token != "" && !previousWorkouts.loadedOnlineWorkouts && !previousWorkouts.loadingOnlineWorkouts && exs.loadedOnlineExercises) {
       previousWorkouts.loadingOnlineWorkouts = true;
       previousWorkouts.setup();
     }
@@ -69,12 +77,12 @@ class Workouts with ChangeNotifier {
     // print("after added workouts from storage: $this");
     addedWorkout = await syncronize(saveAndNotifyIfChanged: false) || addedWorkout;
     // print("after added workouts from syncronizing: $this");
-    print("Setup completed, now notifying listeners");
+    print("Workouts setup completed, now notifying listeners");
     if (addedWorkout) {
       print("saving from setup");
       this.save();
-      notifyListeners();
     }
+    notifyListeners();
   }
 
   Future<bool> addingFromStorage({bool saveAndNotifyIfChanged = false}) async {
