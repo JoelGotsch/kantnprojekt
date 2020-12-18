@@ -41,7 +41,7 @@ class DailyStatus {
 class WorkoutOverviews extends ChangeNotifier {
   Map<int, WorkoutOverview> workoutOverviews = {};
   Map<int, DailyStatus> dailyStatus = {};
-  final Map<String, UserExercise> userExercises;
+  final Map<String, UserExercise> userExercises; // the keys must be localExerciseIds and correspond to action.exerciseId
   Map<String, Map<String, double>> workoutPoints = {};
 
   WorkoutOverviews(this.userExercises);
@@ -57,8 +57,8 @@ class WorkoutOverviews extends ChangeNotifier {
     });
     Map<String, UserExercise> newUserExercises = {};
     // because the actions in workouts refer to exercise ids and not user-exercise ids, we need to re-map here:
-    userExercises.forEach((key, usEx) {
-      newUserExercises.putIfAbsent(usEx.exercise.localId, () => usEx);
+    userExercises.forEach((key, exPar) {
+      newUserExercises.putIfAbsent(exPar.exercise.localId, () => exPar);
     });
     WorkoutOverviews woOverview = WorkoutOverviews(newUserExercises);
     for (Workout workout in sortedWorkouts) {
@@ -134,17 +134,17 @@ class WorkoutOverviews extends ChangeNotifier {
     int daywynr = dayWeekYearNumber(date);
     int wynr = weekYearNumber(date);
     int daynr = date.weekday;
-    UserExercise usEx;
+    UserExercise exPar;
     double pointsBefore = 0;
     double actionPoints;
-    userExercises.forEach((key, usEx2) {
-      if (usEx2.exercise.localId == action.localExerciseId) {
-        usEx = usEx2;
-      } else if (usEx2.localId == action.exerciseId || usEx2.userExerciseId == action.localExerciseId || usEx2.userExerciseId == action.exerciseId) {
+    userExercises.forEach((key, exPar2) {
+      if (exPar2.exercise.localId == action.localExerciseId) {
+        exPar = exPar2;
+      } else if (exPar2.localId == action.exerciseId || exPar2.userExerciseId == action.localExerciseId || exPar2.userExerciseId == action.exerciseId) {
         print("ERROR in workouts_overview add_action: this is stragen, investigate!");
       }
     });
-    if (usEx == null) {
+    if (exPar == null) {
       print("Error: couldn't find exerciseId ${action.localExerciseId} in list of userExercise-Exercises.");
       return (false);
     }
@@ -167,16 +167,16 @@ class WorkoutOverviews extends ChangeNotifier {
     }
     if (ds.pointsPerExercise.containsKey(action.exerciseId)) {
       pointsBefore = ds.pointsPerExercise[action.exerciseId];
-      ds.pointsPerExercise[action.exerciseId] += action.number * usEx.points;
+      ds.pointsPerExercise[action.exerciseId] += action.number * exPar.points;
     } else {
-      ds.pointsPerExercise[action.exerciseId] = action.number * usEx.points;
+      ds.pointsPerExercise[action.exerciseId] = action.number * exPar.points;
     }
     // making sure that not more than the maximum points per day can be achieved
-    if (usEx.maxPointsDay > 0 && ds.pointsPerExercise[action.exerciseId] > usEx.maxPointsDay) {
-      ds.pointsPerExercise[action.exerciseId] = usEx.maxPointsDay;
+    if (exPar.maxPointsDay > 0 && ds.pointsPerExercise[action.exerciseId] > exPar.maxPointsDay) {
+      ds.pointsPerExercise[action.exerciseId] = exPar.maxPointsDay;
     }
-    if (usEx.weeklyAllowance > 0) {
-      ds.pointsPerExercise[action.exerciseId] = max(ds.countExercisePerWeek[action.exerciseId] - usEx.weeklyAllowance, 0) * usEx.points;
+    if (exPar.weeklyAllowance > 0) {
+      ds.pointsPerExercise[action.exerciseId] = max(ds.countExercisePerWeek[action.exerciseId] - exPar.weeklyAllowance, 0) * exPar.points;
     }
     ov.noActions += 1;
     actionPoints = ds.pointsPerExercise[action.exerciseId] - pointsBefore;
@@ -210,8 +210,8 @@ class WorkoutOverviews extends ChangeNotifier {
       } else {
         ds.countExercisePerWeek[action.exerciseId] = action.number;
       }
-      if (usEx.weeklyAllowance > 0) {
-        ds.pointsPerExercise[action.exerciseId] = max(ds.countExercisePerWeek[action.exerciseId] - usEx.weeklyAllowance, 0) * usEx.points;
+      if (exPar.weeklyAllowance > 0) {
+        ds.pointsPerExercise[action.exerciseId] = max(ds.countExercisePerWeek[action.exerciseId] - exPar.weeklyAllowance, 0) * exPar.points;
         // we dont need to change the action points in that case as the workouts are provided in a timeley ascending
         ov.points = 0;
         ds.pointsPerExercise.forEach((key, value) {

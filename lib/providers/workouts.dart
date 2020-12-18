@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 // import 'dart:collection'; // for linked hashmaps
 
+import '../misc/global_data.dart';
 import '../misc/functions.dart' as funcs;
 import '../misc/exercise.dart';
 import 'exercises.dart';
@@ -19,16 +20,16 @@ class Workouts with ChangeNotifier {
   // Map<String, Exercise> _exercises = {};
   Exercises exercises;
   String _token;
+  String userId;
   DateTime lastRefresh = DateTime(2020);
   bool loadedOnlineWorkouts = false; // makes sure that syncronize is only called once
   bool loadingOnlineWorkouts = false; // prevents that within an update, the sync process is started again.
-  final String uri = "http://api.kantnprojekt.club/v0_1/workouts";
 
-  Workouts(this._token, this._workouts, this.exercises, this.lastRefresh);
+  Workouts(this._token, this._workouts, this.exercises, this.lastRefresh, this.userId);
 
   factory Workouts.create() {
     print("Workouts created empty.");
-    Workouts wos = Workouts("", {}, Exercises.create(), DateTime(2020));
+    Workouts wos = Workouts("", {}, Exercises.create(), DateTime(2020), "");
     return (wos);
   }
 
@@ -40,35 +41,34 @@ class Workouts with ChangeNotifier {
       return (previousWorkouts);
     }
     previousWorkouts._token = exs.token;
-    // dont save new exercises yet, as the old ones are needed to compare to news for action updates
+    previousWorkouts.userId = exs.userId;
     print(
         "workouts from previous ${exs.token}, ${!previousWorkouts.loadedOnlineWorkouts}, ${!previousWorkouts.loadingOnlineWorkouts}, ${exs.loadedOnlineExercises}");
     if (exs.token != "" && !previousWorkouts.loadedOnlineWorkouts && !previousWorkouts.loadingOnlineWorkouts && exs.loadedOnlineExercises) {
       previousWorkouts.loadingOnlineWorkouts = true;
       previousWorkouts.setup();
     }
-    if (exs.hashCode != previousWorkouts.exercises.hashCode && !previousWorkouts.loadingOnlineWorkouts) {
-      // make sure, that if some userExercises/ Exercises where uploaded, that all actions refer to exerciseId
-      previousWorkouts._workouts.forEach((localId, wo) {
-        wo.actions.forEach((key, action) {
-          if (action.exerciseId == null || action.exerciseId == "") {
-            // was the exercise now uploaded?
-            try {
-              Exercise ex = exs.getExercise(action.localExerciseId);
-              if (ex.exerciseId != null && ex.exerciseId != "") {
-                action.exerciseId = ex.exerciseId;
-              } else {
-                print("Still waiting for upload of exercise ${action.localExerciseId}");
-              }
-            } catch (e) {
+    return (previousWorkouts);
+  }
+
+  void updateActionExerciseIds(Exercises exs) {
+    _workouts.forEach((localId, wo) {
+      wo.actions.forEach((key, action) {
+        if (action.exerciseId == null || action.exerciseId == "") {
+          // was the exercise now uploaded?
+          try {
+            Exercise ex = exs.getExercise(action.localExerciseId);
+            if (ex.exerciseId != null && ex.exerciseId != "") {
+              action.exerciseId = ex.exerciseId;
+            } else {
               print("Still waiting for upload of exercise ${action.localExerciseId}");
             }
+          } catch (e) {
+            print("Still waiting for upload of exercise ${action.localExerciseId}");
           }
-        });
+        }
       });
-      previousWorkouts.exercises = exs;
-    }
-    return (previousWorkouts);
+    });
   }
 
   void setup() async {
@@ -90,7 +90,7 @@ class Workouts with ChangeNotifier {
     print("adding workouts from storage");
     try {
       final prefs = await SharedPreferences.getInstance();
-      String woString = prefs.getString("Workouts");
+      String woString = prefs.getString("Workouts" + userId);
       // print(woString);
       Map<String, dynamic> _json = json.decode(woString);
       addedExercise = this.addingFromJson(_json, saveAndNotifyIfChanged: false);
@@ -101,7 +101,7 @@ class Workouts with ChangeNotifier {
       }
       return (addedExercise);
     } catch (e) {
-      print("Error: Couldn't load exercises/ userExercises from storage, probably never saved them. " + e.toString());
+      print("Error: Couldn't load workouts from storage, probably never saved them. " + e.toString());
     }
     return (false);
   }
@@ -146,8 +146,8 @@ class Workouts with ChangeNotifier {
     try {
       workoutEditDates = await this.fetchHeaders();
       workoutEditDates.forEach((id, woLatestEdit) {
-        if (_workouts.containsKey(id)) {
-          Workout wo = _workouts[id];
+        if (hasWorkout(id)) {
+          Workout wo = getWorkout(id);
           if (wo.latestEdit.compareTo(woLatestEdit) < 0) {
             // exLatestEdit is later => info on server is newer
             print("Found newer version of workout $id on server: server: ${woLatestEdit.toIso8601String()} vs local ${wo.latestEdit.toIso8601String()}");
@@ -216,24 +216,6 @@ class Workouts with ChangeNotifier {
     return (returnList);
   }
 
-  Workout byId(String workoutId) {
-    Workout returnWo;
-    if (_workouts.containsKey(workoutId)) {
-      returnWo = _workouts[workoutId];
-    } else {
-      _workouts.forEach((key, wo) {
-        if (wo.workoutId == workoutId || wo.localId == workoutId) {
-          returnWo = wo;
-        }
-      });
-    }
-    if (returnWo != null) {
-      return (returnWo);
-    } else {
-      throw (Exception("Couldn't find workout with id: " + workoutId));
-    }
-  }
-
   Workout byActionId(String actionId) {
     Workout returnWo;
     _workouts.forEach((key, wo) {
@@ -256,12 +238,11 @@ class Workouts with ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     print("saving ${_workouts.length} workouts..");
     String output = this.toString();
-    prefs.setString('Workouts', output);
+    prefs.setString('Workouts' + userId, output);
   }
 
   Future<Map<String, dynamic>> _fetch(
       {String workoutId, List<String> workoutIds, DateTime minEditDate, DateTime startDate, DateTime endDate, int number = 0}) async {
-    // deletes all locally stored exercises and loads the complete list from online database and stores values in sharedPreferences
     Map<String, dynamic> newWorkouts = {};
     Map<String, String> queryParameters = {};
     print("start fetching workouts..");
@@ -281,9 +262,10 @@ class Workouts with ChangeNotifier {
       queryParameters["end_date"] = endDate.toIso8601String();
     }
     queryParameters["number"] = number.toString();
+    queryParameters["user_id"] = userId.toString();
     Uri url = Uri.http(
-      "api.kantnprojekt.club",
-      "/v0_1/workouts",
+      GlobalData.api_url,
+      "workouts",
       queryParameters,
     );
     final response = await http.get(
@@ -342,8 +324,8 @@ class Workouts with ChangeNotifier {
     print("start fetching workout headers ..");
     queryParameters["latest_edit_date_only"] = true.toString();
     Uri url = Uri.http(
-      "api.kantnprojekt.club",
-      "/v0_1/workouts",
+      GlobalData.api_url,
+      "workouts",
       queryParameters,
     );
     final response = await http.get(
@@ -497,6 +479,19 @@ class Workouts with ChangeNotifier {
     return (workout);
   }
 
+  bool hasWorkout(String workoutId) {
+    bool hasWo = false;
+    try {
+      Workout wo = getWorkout(workoutId);
+      if (wo != null) {
+        hasWo = true;
+      }
+    } catch (e) {
+      hasWo = false;
+    }
+    return (hasWo);
+  }
+
   void addAction(Action ac, String workoutId, {bool saveAndNotifyIfChanged = true}) async {
     print("Workouts: adding action..");
     try {
@@ -555,8 +550,8 @@ class Workouts with ChangeNotifier {
       return (_uploaded);
     }
     Uri url = Uri.http(
-      "api.kantnprojekt.club",
-      "/v0_1/workouts",
+      GlobalData.api_url,
+      "workouts",
     );
     try {
       final response = await http.post(url,

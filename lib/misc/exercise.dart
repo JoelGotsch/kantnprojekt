@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'exercise_parents.dart';
+
 import '../misc/functions.dart' as misc;
 
-class Exercise {
+class Exercise extends ExerciseParent {
   String exerciseId; //from database, provided by API
   String localId = misc.getRandomString(20);
   final String title;

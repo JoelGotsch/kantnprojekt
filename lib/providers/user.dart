@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 
 import '../misc/functions.dart';
 import '../misc/http_exception.dart';
+import '../misc/global_data.dart';
 
 // import '../models/http_exception.dart';
 
@@ -16,7 +17,6 @@ class User with ChangeNotifier {
   String _userName;
   String _email;
   String _userId;
-  final String uri = 'http://api.kantnprojekt.club/v0_1/user';
 
   bool get isAuth {
     return (token != null && token != "");
@@ -40,8 +40,12 @@ class User with ChangeNotifier {
 
   Future<void> _authenticate(String email, String password, String actionName, {String userName = "", String oldPassword = ""}) async {
     try {
+      Uri url = Uri.http(
+        GlobalData.api_url,
+        "exercises",
+      );
       final response = await http.post(
-        uri,
+        url,
         body: json.encode(
           {
             'action': actionName,
@@ -126,7 +130,6 @@ class Users {
   Map<String, String> users; //userId: userName
   // String _userId;
   String _token;
-  final String uri = 'https://api.kantnprojekt.club/v0_1/user';
 
   Users(this._token);
 
@@ -143,10 +146,12 @@ class Users {
     }
 
     Map<String, String> queryParameters = {"user_id": userId};
-    String url = Uri(
-      host: uri,
-      queryParameters: queryParameters,
-    ).toString();
+
+    Uri url = Uri.http(
+      GlobalData.api_url,
+      "user",
+      queryParameters,
+    );
     final response = await http.get(
       url,
       headers: {

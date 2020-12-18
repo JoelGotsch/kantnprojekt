@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
-import 'package:kantnprojekt/views/exercise_view.dart';
 import 'package:provider/provider.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 
@@ -14,6 +13,7 @@ import 'views/auth_screen.dart';
 import 'views/splash_screen.dart';
 import 'views/workouts_overview_screen.dart';
 import 'views/exercise_view.dart';
+import 'views/challenge_overview.dart';
 
 void main() {
   runApp(MyApp());
@@ -32,15 +32,25 @@ class MyApp extends StatelessWidget {
         // ),
         ChangeNotifierProxyProvider<User, Exercises>(
           create: (_) => Exercises.create(),
-          update: (ctx, user, previousExercises) => Exercises.fromPrevious(user.token, previousExercises),
+          update: (ctx, user, previousExercises) => Exercises.fromPrevious(user.token, user.userId, previousExercises),
         ),
         ChangeNotifierProxyProvider<Exercises, Workouts>(
-          create: (_) => Workouts.create(), // note: init can't be run here, since user is not accessible
-          update: (ctx, exercises, previousWorkouts) => Workouts.fromPrevious(
-            exercises,
-            previousWorkouts,
-          ),
-        ),
+            create: (_) => Workouts.create(), // note: init can't be run here, since user is not accessible
+            update: (ctx, exercises, previousWorkouts) {
+              bool updateActions = false;
+              if (exercises.hashCode != previousWorkouts.exercises.hashCode && !previousWorkouts.loadingOnlineWorkouts) {
+                // make sure, that if some userExercises/ Exercises where uploaded, that all actions refer to exerciseId
+                updateActions = true;
+              }
+              Workouts newWos = Workouts.fromPrevious(
+                exercises,
+                previousWorkouts,
+              );
+              if (updateActions) {
+                newWos.updateActionExerciseIds(exercises);
+              }
+              return (newWos);
+            }),
       ],
       child: Consumer<User>(
         builder: (ctx, user, _) => RefreshConfiguration(
@@ -78,6 +88,7 @@ class MyApp extends StatelessWidget {
             routes: {
               WorkoutsOverviewScreen.routeName: (ctx) => WorkoutsOverviewScreen(),
               ExercisesOverviewScreen.routeName: (ctx) => ExercisesOverviewScreen(),
+              ChallengesOverviewScreen.routeName: (ctx) => ChallengesOverviewScreen(),
             },
           ),
         ),

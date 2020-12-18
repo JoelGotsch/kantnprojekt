@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../misc/exercise.dart';
+import '../misc/global_data.dart';
 import '../misc/user_exercise.dart';
 import '../misc/functions.dart' as funcs;
 
@@ -12,23 +13,24 @@ class Exercises with ChangeNotifier {
   Map<String, UserExercise> _userExercises = {};
   // Map<String, ChallengeExercise> _challenge_exercises = {};
   String token;
-  final String uri = "http://api.kantnprojekt.club/v0_1/exercises";
+  String userId;
   DateTime lastRefresh = DateTime(2020);
   bool loadedOnlineExercises = false; // makes sure that syncronize is only called once
   bool loadingOnlineExercises = false; // prevents that within an update, the sync process is started again.
   // TODO: test if fromPrevious while loading causes problems
 
-  Exercises(this.token, this._exercises, this._userExercises, this.lastRefresh);
+  Exercises(this.token, this.userId, this._exercises, this._userExercises, this.lastRefresh);
 
   factory Exercises.create() {
     print("Exercises created empty.");
-    Exercises exs = Exercises("", {}, {}, DateTime(2020));
+    Exercises exs = Exercises("", "", {}, {}, DateTime(2020));
     return (exs);
   }
 
-  factory Exercises.fromPrevious(String token, Exercises previousExercises) {
+  factory Exercises.fromPrevious(String token, String userId, Exercises previousExercises) {
     print("Exercises.fromPrevious is run.");
     previousExercises.token = token;
+    previousExercises.userId = userId;
     if (token != "" && !previousExercises.loadedOnlineExercises && !previousExercises.loadingOnlineExercises) {
       previousExercises.loadingOnlineExercises = true;
       previousExercises.setup();
@@ -287,8 +289,8 @@ class Exercises with ChangeNotifier {
     }
     // queryParameters["number"] = number.toString();
     Uri url = Uri.http(
-      "api.kantnprojekt.club",
-      "/v0_1/exercises",
+      GlobalData.api_url,
+      "exercises",
       queryParameters,
     );
     final response = await http.get(
@@ -333,8 +335,8 @@ class Exercises with ChangeNotifier {
     print("start fetching exercise headers ..");
     queryParameters["latest_edit_date_only"] = true.toString();
     Uri url = Uri.http(
-      "api.kantnprojekt.club",
-      "/v0_1/exercises",
+      GlobalData.api_url,
+      "exercises",
       queryParameters,
     );
     final response = await http.get(
@@ -456,8 +458,13 @@ class Exercises with ChangeNotifier {
       return (false);
     }
     String helper = this.userExercisesToString(exerciseMap: offlineUserExercises);
+
+    Uri url = Uri.http(
+      GlobalData.api_url,
+      "exercises",
+    );
     try {
-      response = await http.post(uri,
+      response = await http.post(url,
           headers: {
             "token": token,
             // "user_id": _userId,
@@ -632,7 +639,7 @@ class Exercises with ChangeNotifier {
       String note,
       bool uploaded}) {
     bool somethingChanged = false;
-    UserExercise usEx = _userExercises[id];
+    UserExercise usEx = getUserExercise(id);
     if (points != null && points != usEx.points) {
       somethingChanged = true;
       usEx.points = points;
