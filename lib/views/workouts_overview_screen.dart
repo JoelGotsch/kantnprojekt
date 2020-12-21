@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:kantnprojekt/providers/user.dart';
 import 'package:provider/provider.dart';
-import 'package:pull_to_refresh/pull_to_refresh.dart';
+// import 'package:pull_to_refresh/pull_to_refresh.dart';
 
 import '../providers/workout.dart' as wo;
 import '../providers/workouts.dart' as wos;
@@ -22,24 +22,22 @@ class WorkoutsOverviewScreen extends StatefulWidget {
 
 class _WorkoutsOverviewScreenState extends State<WorkoutsOverviewScreen> {
   var _isLoading = false;
-  RefreshController _refreshController = RefreshController(initialRefresh: false);
 
-  void _onRefresh() async {
+  Future<void> _onRefresh() async {
     // monitor network fetch
     await Provider.of<wos.Workouts>(context, listen: false).fetchNew();
     await Provider.of<wos.Workouts>(context, listen: false).uploadOfflineWorkouts(saveAndNotifyIfChanged: true);
     // if failed,use refreshFailed()
-    _refreshController.refreshCompleted();
   }
 
-  void _onLoading() async {
-    // monitor network fetch
-    await Future.delayed(Duration(milliseconds: 1000));
-    // if failed,use loadFailed(),if no data return,use LoadNodata()
-    print("Tried to load, should be turned off.");
-    if (mounted) setState(() {});
-    _refreshController.loadComplete();
-  }
+  // void _onLoading() async {
+  //   // monitor network fetch
+  //   await Future.delayed(Duration(milliseconds: 1000));
+  //   // if failed,use loadFailed(),if no data return,use LoadNodata()
+  //   print("Tried to load, should be turned off.");
+  //   if (mounted) setState(() {});
+  //   _refreshController.loadComplete();
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -65,19 +63,9 @@ class _WorkoutsOverviewScreenState extends State<WorkoutsOverviewScreen> {
           ? Center(
               child: CircularProgressIndicator(),
             )
-          : SmartRefresher(
-              enablePullDown: true,
-              enablePullUp: false,
-              header: WaterDropMaterialHeader(
-                // Configure the default header indicator. If you have the same header indicator for each page, you need to set this
-                // semanticsLabel: "Test",
-                // distance: 200,
-                backgroundColor: Theme.of(context).accentColor,
-                color: Theme.of(context).accentColor,
-              ),
-              controller: _refreshController,
+          : RefreshIndicator(
               onRefresh: _onRefresh,
-              onLoading: _onLoading,
+              // onLoading: _onLoading,
               child: ListView(children: <Widget>[
                 Container(
                   height: (MediaQuery.of(context).size.height - 82) * 0.27,

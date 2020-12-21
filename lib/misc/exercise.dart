@@ -63,7 +63,7 @@ class Exercise extends ExerciseParent {
     if (localId == null || localId == "" || localId == "null" || title == "" || userId == "") {
       throw ("tried to add exercise from invalid json: $parsedJson");
     }
-    print("Exercise from Json input: uploaded = $uploaded");
+    // print("Exercise from Json input: uploaded = $uploaded");
     Exercise ex = Exercise(title, note, unit, points,
         description: description,
         maxPointsDay: maxPointsDay,

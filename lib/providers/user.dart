@@ -40,9 +40,9 @@ class User with ChangeNotifier {
 
   Future<void> _authenticate(String email, String password, String actionName, {String userName = "", String oldPassword = ""}) async {
     try {
-      Uri url = Uri.http(
-        GlobalData.api_url,
-        "exercises",
+      Uri url = Uri.https(
+        GlobalData.apiUrlStart,
+        GlobalData.apiUrlVersion + "user",
       );
       final response = await http.post(
         url,
@@ -58,27 +58,31 @@ class User with ChangeNotifier {
         ),
         headers: {"Content-Type": "application/json"},
       );
-      final responseData = json.decode(response.body);
-      //TODO: check for responsecode and throw error in Snackbar
-      print(responseData.toString());
-      if (responseData['message'] != null) {
-        throw HttpException(responseData['message']);
+      if (response.statusCode == 201) {
+        final responseData = json.decode(response.body);
+        if (responseData['message'] != null) {
+          throw HttpException(responseData['message']);
+        }
+        _token = responseData['token'];
+        _userName = responseData['user_name'];
+        _userId = responseData['user_id'];
+        _email = email;
+        notifyListeners();
+        final prefs = await SharedPreferences.getInstance();
+        final userData = json.encode(
+          {
+            'token': _token,
+            'userName': _userName,
+            'userId': _userId,
+            'email': email,
+          },
+        );
+        prefs.setString('userData', userData);
+        // print(result["common_exercises"]);
+      } else {
+        // If that call was not successful, throw an error.
+        throw Exception('Failed to load User-data: ${response.body}');
       }
-      _token = responseData['token'];
-      _userName = responseData['user_name'];
-      _userId = responseData['user_id'];
-      _email = email;
-      notifyListeners();
-      final prefs = await SharedPreferences.getInstance();
-      final userData = json.encode(
-        {
-          'token': _token,
-          'userName': _userName,
-          'userId': _userId,
-          'email': email,
-        },
-      );
-      prefs.setString('userData', userData);
     } catch (error) {
       throw error;
     }
@@ -147,9 +151,9 @@ class Users {
 
     Map<String, String> queryParameters = {"user_id": userId};
 
-    Uri url = Uri.http(
-      GlobalData.api_url,
-      "user",
+    Uri url = Uri.https(
+      GlobalData.apiUrlStart,
+      GlobalData.apiUrlVersion + "user",
       queryParameters,
     );
     final response = await http.get(

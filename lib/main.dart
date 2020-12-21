@@ -5,6 +5,7 @@ import 'package:pull_to_refresh/pull_to_refresh.dart';
 
 import 'misc/color_definition.dart';
 
+import 'providers/challenges.dart';
 import 'providers/workouts.dart';
 import 'providers/user.dart';
 import 'providers/exercises.dart';
@@ -51,6 +52,10 @@ class MyApp extends StatelessWidget {
               }
               return (newWos);
             }),
+        ChangeNotifierProxyProvider<User, Challenges>(
+          create: (_) => Challenges.create(),
+          update: (ctx, user, previousChallenges) => Challenges.fromPrevious(user.token, previousChallenges),
+        ),
       ],
       child: Consumer<User>(
         builder: (ctx, user, _) => RefreshConfiguration(

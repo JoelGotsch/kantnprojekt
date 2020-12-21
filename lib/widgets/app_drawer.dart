@@ -29,7 +29,7 @@ class AppDrawer extends StatelessWidget {
           ),
           Divider(),
           ListTile(
-            leading: Icon(Icons.settings),
+            leading: FaIcon(FontAwesomeIcons.dumbbell),
             title: Text("Exercises"),
             onTap: () {
               Navigator.of(context).pushReplacementNamed(ExercisesOverviewScreen.routeName);
@@ -37,7 +37,7 @@ class AppDrawer extends StatelessWidget {
           ),
           Divider(),
           ListTile(
-            leading: Icon(Icons.settings),
+            leading: FaIcon(FontAwesomeIcons.trophy),
             title: Text("Challenges"),
             onTap: () {
               Navigator.of(context).pushReplacementNamed(ChallengesOverviewScreen.routeName);

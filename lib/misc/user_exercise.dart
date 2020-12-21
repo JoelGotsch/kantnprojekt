@@ -54,6 +54,9 @@ class UserExercise {
     }
     // String title = misc.getFromJson("title", parsedJson, "") as String;
     String unit = misc.getFromJson("unit", parsedJson, "") as String;
+    if (unit == "" && exercise.unit != "") {
+      unit = exercise.unit;
+    }
     String note = misc.getFromJson("note", parsedJson, "") as String;
     String userId = misc.getFromJson("user_id", parsedJson, "") as String;
     double points = misc.getFromJson("points", parsedJson, .0) as double;

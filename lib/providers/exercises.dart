@@ -98,6 +98,7 @@ class Exercises with ChangeNotifier {
           _addedUserExercise = this.addUserExercise(usEx, saveAndNotifyIfChanged: false) || _addedUserExercise;
         } catch (e) {
           print("Couldn't load user-exercise from Json. " + e.toString());
+          print(value);
         }
 
         // print("added user-exercise from storage: ${usEx.userExerciseId}");
@@ -232,6 +233,7 @@ class Exercises with ChangeNotifier {
       Map<String, Map<String, dynamic>> newExercises = await this._fetch(userExerciseIds: serverNewUserExIds, exerciseIds: serverNewExIds);
       addedExercise = addingFromJson(newExercises["common_exercises"], newExercises["user_exercises"], saveAndNotifyIfChanged: false);
       loadedOnlineExercises = true;
+      print("Loaded online exercises!!");
       lastRefresh = DateTime.now();
       // print(exerciseEditDates);
       // check which editDates dont match with saved ones and get newer ones from server and post (send) if newer from app.
@@ -288,9 +290,9 @@ class Exercises with ChangeNotifier {
       queryParameters["exercise_ids"] = exerciseIds.join(",");
     }
     // queryParameters["number"] = number.toString();
-    Uri url = Uri.http(
-      GlobalData.api_url,
-      "exercises",
+    Uri url = Uri.https(
+      GlobalData.apiUrlStart,
+      GlobalData.apiUrlVersion + "exercises",
       queryParameters,
     );
     final response = await http.get(
@@ -311,7 +313,7 @@ class Exercises with ChangeNotifier {
       print("Couldn't parse response in fetch exercises: " + response.toString());
     }
 
-    if (response.statusCode == 201 || response.statusCode == 200) {
+    if (response.statusCode == 201) {
       print("adding common exercises");
       // print(result["common_exercises"]);
       newExercises = result["data"]["common_exercises"] as Map<String, dynamic>;
@@ -334,9 +336,9 @@ class Exercises with ChangeNotifier {
     Map<String, Map<String, DateTime>> returnMap = {};
     print("start fetching exercise headers ..");
     queryParameters["latest_edit_date_only"] = true.toString();
-    Uri url = Uri.http(
-      GlobalData.api_url,
-      "exercises",
+    Uri url = Uri.https(
+      GlobalData.apiUrlStart,
+      GlobalData.apiUrlVersion + "exercises",
       queryParameters,
     );
     final response = await http.get(
@@ -459,9 +461,9 @@ class Exercises with ChangeNotifier {
     }
     String helper = this.userExercisesToString(exerciseMap: offlineUserExercises);
 
-    Uri url = Uri.http(
-      GlobalData.api_url,
-      "exercises",
+    Uri url = Uri.https(
+      GlobalData.apiUrlStart,
+      GlobalData.apiUrlVersion + "exercises",
     );
     try {
       response = await http.post(url,
@@ -539,7 +541,7 @@ class Exercises with ChangeNotifier {
     } catch (e) {
       // oldEx doesn't exist
       _exercises.putIfAbsent(ex.localId, () => ex);
-      print("added exercise ${ex.localId}");
+      print("added exercise ${ex.localId} with id ${ex.exerciseId}");
       _exerciseAdded = true;
     }
     if (saveAndNotifyIfChanged && _exerciseAdded) {

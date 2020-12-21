@@ -107,9 +107,9 @@ class Challenges with ChangeNotifier {
     bool success = false;
     Map<String, String> queryParameters = {};
     queryParameters["detail_level"] = "details";
-    Uri url = Uri.http(
-      GlobalData.api_url,
-      "challenges",
+    Uri url = Uri.https(
+      GlobalData.apiUrlStart,
+      GlobalData.apiUrlVersion + "challenges",
       queryParameters,
     );
     final response = await http.get(
@@ -135,6 +135,44 @@ class Challenges with ChangeNotifier {
     } else {
       // If that call was not successful, throw an error.
       print('ERROR: Failed to load Challenge: ' + result["message"].toString());
+    }
+    loadingOnlineChallenges = false;
+    if (success) {
+      notifyListeners();
+    }
+    return (success);
+  }
+
+  Future<bool> joinChallenge(Challenge ch, String userId) async {
+    // server should return the ChallengeUser data of user.
+    bool success = false;
+    Map<String, String> queryParameters = {};
+    queryParameters["challenge_id"] = ch.challengeId;
+    Uri url = Uri.https(
+      GlobalData.apiUrlStart,
+      GlobalData.apiUrlVersion + "challengeaccept",
+      queryParameters,
+    );
+    final response = await http.get(
+      url,
+      headers: {
+        "token": _token,
+        // "user_id": _userId,
+      },
+    );
+    final Map result = json.decode(response.body);
+    // print("Response in fetch: $result");
+
+    if (response.statusCode == 201) {
+      Map<String, dynamic> challengeUserInfo = result["data"];
+      ChallengeUser myself = ChallengeUser.fromJson(challengeUserInfo);
+      ch.users.putIfAbsent(myself.userId, () => myself);
+      this.save();
+      loadedOnlineChallenges = true;
+      success = true;
+    } else {
+      // If that call was not successful, throw an error.
+      print('ERROR: Failed to join Challenge: ' + result["message"].toString());
     }
     loadingOnlineChallenges = false;
     if (success) {
@@ -238,9 +276,9 @@ class Challenges with ChangeNotifier {
       queryParameters["end_date"] = endDate.toIso8601String();
     }
     queryParameters["number"] = number.toString();
-    Uri url = Uri.http(
-      GlobalData.api_url,
-      "challenges",
+    Uri url = Uri.https(
+      GlobalData.apiUrlStart,
+      GlobalData.apiUrlVersion + "challenges",
       queryParameters,
     );
     final response = await http.get(
@@ -281,9 +319,9 @@ class Challenges with ChangeNotifier {
     Map<String, String> queryParameters = {};
     print("start fetching challenge headers ..");
     queryParameters["detail_level"] = "headers";
-    Uri url = Uri.http(
-      GlobalData.api_url,
-      "challenges",
+    Uri url = Uri.https(
+      GlobalData.apiUrlStart,
+      GlobalData.apiUrlVersion + "challenges",
       queryParameters,
     );
     final response = await http.get(
@@ -396,9 +434,9 @@ class Challenges with ChangeNotifier {
       return (true);
     }
     bool success = false;
-    Uri url = Uri.http(
-      GlobalData.api_url,
-      "challenge",
+    Uri url = Uri.https(
+      GlobalData.apiUrlStart,
+      GlobalData.apiUrlVersion + "challenge",
     );
     try {
       final response = await http.post(url,
@@ -417,7 +455,7 @@ class Challenges with ChangeNotifier {
         } else {
           ch.challengeId = newChallengeId;
           ch.uploaded = true;
-          (result["exercises"] as Map<String, String>).forEach((key, value) {
+          (result["exercises"] as Map<String, dynamic>).forEach((key, value) {
             try {
               ch.exercises[key].challengeExerciseId = value.toString();
             } catch (e) {

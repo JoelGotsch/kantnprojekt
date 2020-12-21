@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:kantnprojekt/views/challenge_details.dart';
 
 import '../providers/challenge.dart' as ch;
 // import '../views/edit_challenge.dart';
@@ -19,7 +20,7 @@ class ChallengeItem extends StatefulWidget {
 }
 
 class _ChallengeItemState extends State<ChallengeItem> {
-  var _expanded = false;
+  // var _expanded = false;
   ch.Challenge challenge;
 
   @override
@@ -34,24 +35,24 @@ class _ChallengeItemState extends State<ChallengeItem> {
       child: Column(children: <Widget>[
         GestureDetector(
           onTap: () {
+            Navigator.push(context, MaterialPageRoute(builder: (context) => ChallengeDetailScreen(challenge)));
             // TODO: Route to challenge-view
           },
           child: ListTile(
             title: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: <Widget>[
               Text('  ${challenge.name}'),
-              Text('${challenge.users.length} participants.')
-
-              // Icon(
-              //   widget.challenge.uploaded ? Icons.backup : Icons.autorenew,
-              //   color: Theme.of(context).accentColor,
-              // ),
             ]),
             trailing: challenge.users.containsKey(widget.userId) ? Text(" participating") : Text(" not participating"),
             subtitle: Container(
               // color: Theme.of(context).accentColor,
               padding: EdgeInsets.all(10),
-              child: Row(
-                children: <Widget>[Text("${challenge.minPoints} points per ${challenge.evalPeriod}"), Text("${challenge.exercises.length} exercises")],
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text("${challenge.minPoints} points per ${challenge.evalPeriod}"),
+                  Text("${challenge.exercises.length} exercises"),
+                  Text('${challenge.users.length} participant(s)'),
+                ],
               ),
             ),
           ),

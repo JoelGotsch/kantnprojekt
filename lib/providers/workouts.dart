@@ -42,6 +42,7 @@ class Workouts with ChangeNotifier {
     }
     previousWorkouts._token = exs.token;
     previousWorkouts.userId = exs.userId;
+    previousWorkouts.exercises = exs;
     print(
         "workouts from previous ${exs.token}, ${!previousWorkouts.loadedOnlineWorkouts}, ${!previousWorkouts.loadingOnlineWorkouts}, ${exs.loadedOnlineExercises}");
     if (exs.token != "" && !previousWorkouts.loadedOnlineWorkouts && !previousWorkouts.loadingOnlineWorkouts && exs.loadedOnlineExercises) {
@@ -263,9 +264,9 @@ class Workouts with ChangeNotifier {
     }
     queryParameters["number"] = number.toString();
     queryParameters["user_id"] = userId.toString();
-    Uri url = Uri.http(
-      GlobalData.api_url,
-      "workouts",
+    Uri url = Uri.https(
+      GlobalData.apiUrlStart,
+      GlobalData.apiUrlVersion + "workouts",
       queryParameters,
     );
     final response = await http.get(
@@ -323,9 +324,9 @@ class Workouts with ChangeNotifier {
     Map<String, String> queryParameters = {};
     print("start fetching workout headers ..");
     queryParameters["latest_edit_date_only"] = true.toString();
-    Uri url = Uri.http(
-      GlobalData.api_url,
-      "workouts",
+    Uri url = Uri.https(
+      GlobalData.apiUrlStart,
+      GlobalData.apiUrlVersion + "workouts",
       queryParameters,
     );
     final response = await http.get(
@@ -549,9 +550,9 @@ class Workouts with ChangeNotifier {
       // print("offlineworkouts are null or 0");
       return (_uploaded);
     }
-    Uri url = Uri.http(
-      GlobalData.api_url,
-      "workouts",
+    Uri url = Uri.https(
+      GlobalData.apiUrlStart,
+      GlobalData.apiUrlVersion + "workouts",
     );
     try {
       final response = await http.post(url,

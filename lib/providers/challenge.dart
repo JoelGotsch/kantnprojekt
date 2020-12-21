@@ -3,7 +3,10 @@ import 'dart:convert';
 // import 'dart:html';
 // import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
-import '../misc/global_data.dart';
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:syncfusion_flutter_charts/charts.dart';
+import 'package:carousel_slider/carousel_slider.dart';
 
 import '../misc/functions.dart';
 import '../misc/challenge_exercise.dart';
@@ -35,7 +38,7 @@ class ChallengeUser {
   String userName;
   final DateTime startedChallenge;
   DateTime latestEdit;
-  Map<String, ChallengeWorkout> userWorkouts;
+  Map<String, ChallengeWorkout> userWorkouts = {};
   String hash = "";
 
   ChallengeUser(this.userId, this.userName, this.startedChallenge, this.latestEdit, this.hash);
@@ -49,9 +52,10 @@ class ChallengeUser {
     ChallengeUser chUs = ChallengeUser(userId, userName, startedChallenge, latestEdit, hash);
     // now adding challengeWorkouts
     try {
+      print(parsedJson);
       (parsedJson['workouts'] as Map<String, dynamic>).forEach((key, value) {
         try {
-          chUs.userWorkouts.putIfAbsent(value['user_id'], () => ChallengeWorkout.fromJson(value as Map<String, dynamic>));
+          chUs.userWorkouts.putIfAbsent(key, () => ChallengeWorkout.fromJson(value as Map<String, dynamic>));
         } catch (e) {
           print("Couldn't create/add workout-data from challenge-json: $e");
         }
@@ -80,7 +84,7 @@ class ChallengeUser {
       (parsedJson['workouts'] as Map<String, dynamic>).forEach((key, value) {
         try {
           ChallengeWorkout chWo = ChallengeWorkout.fromJson(value as Map<String, dynamic>);
-          updatedUserWorkouts.putIfAbsent(value['user_id'], () => chWo);
+          updatedUserWorkouts.putIfAbsent(key, () => chWo);
           if (chWo.date.compareTo(minDate) < 0) {
             minDate = chWo.date;
             minDateChanged = true;
@@ -137,6 +141,47 @@ class ChallengeUser {
   }
 }
 
+class WeeklyChallengeUserSummary {
+  // DateTime date;
+  int weekYear;
+  double points;
+  String userName;
+  WeeklyChallengeUserSummary(this.weekYear, this.points, this.userName);
+
+  factory WeeklyChallengeUserSummary.fromChallengeUser(ChallengeUser chUs, DateTime date) {
+    int weekYearNr = weekYearNumber(date);
+    double points = 0;
+    chUs.userWorkouts.forEach((key, usWo) {
+      if (weekYearNr == weekYearNumber(usWo.date)) {
+        points = points + usWo.points;
+      }
+    });
+    return (WeeklyChallengeUserSummary(weekYearNr, points, chUs.userName));
+  }
+}
+
+class WeeklyChallengeSummary {
+  // DateTime date;
+  int weekYear;
+  List<WeeklyChallengeUserSummary> userSummaries = [];
+  WeeklyChallengeSummary(this.weekYear);
+
+  factory WeeklyChallengeSummary.fromChallenge(Challenge ch, DateTime date) {
+    int weekYearNr = weekYearNumber(date);
+    List<WeeklyChallengeUserSummary> userSummaries = [];
+    ch.users.forEach((key, chUs) {
+      if (weekYearNumber(chUs.startedChallenge) <= weekYearNr) {
+        userSummaries.add(WeeklyChallengeUserSummary.fromChallengeUser(chUs, date));
+      }
+    });
+    WeeklyChallengeSummary chSum = WeeklyChallengeSummary(weekYearNr);
+    userSummaries.sort((a, b) => b.points.compareTo(a.points));
+    // highest points first!
+    chSum.userSummaries = userSummaries;
+    return (chSum);
+  }
+}
+
 class Challenge with ChangeNotifier {
   String challengeId; //later from database, provided by API
   String name = "";
@@ -173,7 +218,7 @@ class Challenge with ChangeNotifier {
         startDate: DateTime.now(),
         endDate: DateTime(DateTime.now().year + 1, DateTime.now().month),
         evalPeriod: "week",
-        uploaded: true,
+        uploaded: false,
         lastRefresh: DateTime.now(),
         hash: ""));
   }
@@ -232,6 +277,10 @@ class Challenge with ChangeNotifier {
     }
     // wo.latestEdit =latestEdit;
     return (ch);
+  }
+
+  bool hasUser(String userId) {
+    return (users.containsKey(userId));
   }
 
   void updateFromJson(Map<String, dynamic> parsedJson) {
@@ -320,5 +369,46 @@ class Challenge with ChangeNotifier {
 
     // to be used after update
     return (true);
+  }
+
+  Widget columnCharts() {
+    List<Widget> _columnCharts = [];
+    DateTime date = this.startDate;
+    while (weekYearNumber(date) <= weekYearNumber(DateTime.now()) && weekYearNumber(date) <= weekYearNumber(this.endDate)) {
+      _columnCharts.add(this.columnChart(date: date));
+      date = date.add(Duration(days: 7));
+    }
+    return (CarouselSlider(
+      options: CarouselOptions(
+        aspectRatio: 2.0,
+        enlargeCenterPage: true,
+        enableInfiniteScroll: false,
+        initialPage: _columnCharts.length,
+        autoPlay: false,
+      ),
+      items: _columnCharts,
+    ));
+  }
+
+  Widget columnChart({DateTime date}) {
+    if (date == null) {
+      date = DateTime.now();
+    }
+    DateTime weekStart = date.subtract(Duration(days: date.weekday - 1));
+    DateTime weekStartTest = DateTime.now().subtract(Duration(days: DateTime.now().weekday - 1));
+    print(weekStartTest);
+    String chartTitle = "Week of ${DateFormat("EEE, d MMM yyyy").format(weekStart)}";
+    WeeklyChallengeSummary weeklySummary = WeeklyChallengeSummary.fromChallenge(this, date);
+    return SfCartesianChart(
+      title: ChartTitle(text: chartTitle),
+      primaryXAxis: CategoryAxis(),
+      primaryYAxis: NumericAxis(minimum: 0),
+      series: <ChartSeries>[
+        ColumnSeries<WeeklyChallengeUserSummary, String>(
+            dataSource: weeklySummary.userSummaries,
+            xValueMapper: (WeeklyChallengeUserSummary chUsSum, _) => chUsSum.userName,
+            yValueMapper: (WeeklyChallengeUserSummary chUsSum, _) => chUsSum.points),
+      ],
+    );
   }
 }

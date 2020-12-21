@@ -265,10 +265,7 @@ class _WorkoutItemState extends State<WorkoutItem> {
                               inputFormatters: [DecimalTextInputFormatter(decimalRange: 2)], // Only numbers can be entered
                             ),
                           ),
-                          Container(
-                            width: MediaQuery.of(context).size.width * 0.1,
-                            child: Text(_chosenExercise == null ? "" : _chosenExercise.unit),
-                          ),
+                          _chosenExercise == null ? Text("") : Text(_chosenExercise.unit),
                           Container(
                             width: MediaQuery.of(context).size.width * 0.2,
                             child: RaisedButton(
