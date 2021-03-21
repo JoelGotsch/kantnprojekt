@@ -18,7 +18,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 0.2.0+1
 
 environment:
-  sdk: ">=2.7.0 <3.0.0"
+  sdk: ">=2.7.0 <4.0.0"
 
 dependencies:
   flutter:
@@ -27,7 +27,7 @@ dependencies:
   # firebase_core: ^0.5.0 # for playing around later, not yet used
   # cloud_firestore: ^0.14.0+2 # for playing around later, not yet used
   http: ^0.12.2 # for API requests
-  shared_preferences: ^0.5.10 # for storing data on the phone
+  shared_preferences: ^0.5.12 # for storing data on the phone
   rxdart: ^0.22.3 
   intl: ^0.16.1 # for date formatting
   provider: ^4.0.0 # for state management

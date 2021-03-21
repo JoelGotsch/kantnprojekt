@@ -402,15 +402,14 @@ class Workouts with ChangeNotifier {
   bool addWorkout(Workout wo, {bool saveAndNotifyIfChanged = true}) {
     // returns true if a workout was added or changed.
     bool _addedWorkout = false;
-    if (_workouts.containsKey(wo.localId) || _workouts.containsKey(wo.workoutId)) {
+    String workoutId = wo.workoutId;
+    if (workoutId == null) {
+      workoutId = wo.localId;
+    }
+    if (hasWorkout(workoutId)) {
       // update existing workout
-      Workout oldWo;
-      print("Trying to update workout..");
-      if (_workouts.containsKey(wo.localId)) {
-        oldWo = _workouts[wo.localId];
-      } else {
-        oldWo = _workouts[wo.workoutId];
-      }
+      Workout oldWo = getWorkout(workoutId);
+      print("Trying to update workout.. from " + wo.date.toIso8601String() + " with id");
       if (!oldWo.equals(wo)) {
         oldWo.actions = wo.actions;
         oldWo.date = wo.date;

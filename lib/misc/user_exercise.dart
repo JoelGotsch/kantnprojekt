@@ -124,7 +124,7 @@ class UserExercise {
     return ({
       'id': userExerciseId,
       'local_id': localId,
-      // 'title': title,
+      'title': exercise.title,
       'user_id': userId,
       'exercise_id': exercise.exerciseId,
       'local_exercise_id': exercise.localId,
