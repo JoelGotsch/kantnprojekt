@@ -23,7 +23,26 @@ class _ExercisesOverviewScreenState extends State<ExercisesOverviewScreen> {
     // monitor network fetch
     print("Refreshing due to pull down on exercises view.");
     await Provider.of<exs.Exercises>(context, listen: false).fetchNew();
-    await Provider.of<exs.Exercises>(context, listen: false).uploadOfflineExercises(saveAndNotifyIfChanged: true);
+    Map<String, dynamic> result = await Provider.of<exs.Exercises>(context, listen: false).uploadOfflineExercises(saveAndNotifyIfChanged: true);
+    if (result["success"] != true) {
+      for (String msg in result["messages"]) {
+        await showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text("Couldn't upload new Exercise"),
+            content: Text(msg),
+            actions: <Widget>[
+              TextButton(
+                child: Text('Okay'),
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                },
+              )
+            ],
+          ),
+        );
+      }
+    }
     // if failed,use refreshFailed()
   }
 

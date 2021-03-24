@@ -115,7 +115,6 @@ class ChallengeUser {
   Map<String, dynamic> toJson({int level = 0}) {
     // level 0: all, level 1: hash-compatible, level 2: headers (hash, latest_edit)
     Map<String, dynamic> helper = {};
-    Map<String, dynamic> returnMap = {};
 
     userWorkouts.forEach((key, value) {
       helper[key] = value.toJson();

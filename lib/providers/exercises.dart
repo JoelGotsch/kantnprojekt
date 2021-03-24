@@ -1,6 +1,7 @@
 import 'dart:convert';
 // import 'package:provider/provider.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../misc/exercise.dart';
@@ -248,7 +249,7 @@ class Exercises with ChangeNotifier {
       }
     }
 
-    addedExercise = await uploadOfflineExercises() || addedExercise;
+    addedExercise = await uploadOfflineExercises() == "" || addedExercise;
     loadingOnlineExercises = false;
     return (addedExercise);
   }
@@ -270,8 +271,7 @@ class Exercises with ChangeNotifier {
     await this.saveUserExercises();
   }
 
-  Future<Map<String, Map<String, dynamic>>> _fetch(
-      {String exerciseId, int number = 0, DateTime minEditDate, List<String> userExerciseIds, List<String> exerciseIds}) async {
+  Future<Map<String, Map<String, dynamic>>> _fetch({String exerciseId, DateTime minEditDate, List<String> userExerciseIds, List<String> exerciseIds}) async {
 // helper function to get data via API
     Map<String, dynamic> newExercises = {};
     Map<String, dynamic> newUserExercises = {};
@@ -443,23 +443,13 @@ class Exercises with ChangeNotifier {
     return (returnval);
   }
 
-  Future<bool> uploadOfflineExercises({bool saveAndNotifyIfChanged = false}) async {
+  Future<Map<String, dynamic>> uploadUserExercise(UserExercise usEx, {bool saveAndNotifyIfChanged = false}) async {
     // returns true if at least one exercise was uploaded.
     // tries to upload all not uploaded workouts and updates the Ids, then saves to shared_preferences
-    Map<String, UserExercise> offlineUserExercises = {};
+    String errorMsg = "";
     bool _uploaded = false;
     http.Response response;
-    _userExercises.forEach((key, usEx) {
-      if (!usEx.uploaded) {
-        offlineUserExercises.putIfAbsent(key, () => usEx);
-        print("UserExercise $key is not uploaded yet. Will be synced now.");
-      }
-    });
-    if (offlineUserExercises.length == 0) {
-      print("There are no offline exercises");
-      return (false);
-    }
-    String helper = this.userExercisesToString(exerciseMap: offlineUserExercises);
+    String helper = this.userExercisesToString(exerciseMap: {usEx.localId: usEx});
 
     Uri url = Uri.https(
       GlobalData.apiUrlStart,
@@ -476,12 +466,21 @@ class Exercises with ChangeNotifier {
       // Map<String, Map<String, String>> result = result2["data"] as Map<String, Map<String, String>>; //localId:workoutId
       dynamic result = result2["data"];
       print(response.statusCode);
+      // Either statusCode is not 201 or the user exercise contains a message with a dict {"status": "failure", "message": "Exercise with that title already exists. Choose a different title."} instead of the id
       if (response.statusCode == 201 || response.statusCode == 200) {
-        result["user_exercises"].forEach((_localId, _userExerciseId) {
+        result["user_exercises"].forEach((_localId, _userExerciseId) async {
           String localId = _localId.toString();
           String userExerciseId = _userExerciseId.toString();
-          _uploaded = true;
-          UserExercise usEx = getUserExercise(localId);
+          // check if Error message was delivered in the userExerciseId:
+          try {
+            Map<String, dynamic> exerciseMsg = _userExerciseId;
+            errorMsg = "Couldn't upload Exercise " + usEx.title + ": " + exerciseMsg["message"];
+            print(errorMsg);
+            return ({"success": false, "message": errorMsg});
+          } catch (e) {
+            // print("Everything fine");
+            _uploaded = true;
+          }
           if ((userExerciseId == null || userExerciseId == "null" || userExerciseId == "") && !usEx.notDeleted) {
 // UserExercise was deleted, the server was informed and acknowledged
             deleteUserExercise(localId, false, saveAndNotifyIfChanged: false);
@@ -501,22 +500,53 @@ class Exercises with ChangeNotifier {
               }
             }
           } else {
+            errorMsg = "ERROR: userExercise is not deleted but id came back empty: $usEx";
             print("ERROR: userExercise is not deleted but id came back empty: $usEx");
             print("$userExerciseId");
+            return ({"success": false, "message": errorMsg});
           }
         });
       } else {
+        errorMsg = "Couldn't get response from server while trying to upload offline exercises.";
         print("Couldn't get response from server while trying to upload offline exercises.");
+        return ({"success": false, "message": errorMsg});
       }
     } catch (e) {
+      errorMsg = "Couldn't upload offline exercises: $e";
       print("Couldn't upload offline exercises: $e");
+      return ({"success": false, "message": errorMsg});
       // print(response.body);
     }
     if (_uploaded && saveAndNotifyIfChanged) {
       this.save();
       notifyListeners();
     }
-    return (_uploaded);
+    return ({"success": errorMsg == "", "message": errorMsg});
+  }
+
+  Future<Map<String, dynamic>> uploadOfflineExercises({bool saveAndNotifyIfChanged = false}) async {
+    // returns true if at least one exercise was uploaded.
+    // tries to upload all not uploaded workouts and updates the Ids, then saves to shared_preferences
+    Map<String, UserExercise> offlineUserExercises = {};
+    List<String> errorMsgs = [];
+    bool _uploaded = false;
+    bool _success = true;
+    _userExercises.forEach((key, usEx) async {
+      if (!usEx.uploaded) {
+        offlineUserExercises.putIfAbsent(key, () => usEx);
+        print("UserExercise $key is not uploaded yet. Will be synced now.");
+        Map<String, dynamic> response = await uploadUserExercise(usEx, saveAndNotifyIfChanged: false);
+        if (!response["success"]) {
+          _success = false;
+          errorMsgs.add(response["message"]);
+        }
+      }
+    });
+    if (_uploaded && saveAndNotifyIfChanged) {
+      this.save();
+      notifyListeners();
+    }
+    return ({"success": _success, "messages": errorMsgs});
   }
 
   bool addExercise(Exercise ex, {bool saveAndNotifyIfChanged = false}) {
@@ -631,15 +661,7 @@ class Exercises with ChangeNotifier {
   }
 
   void updateUserExercise(String id,
-      {double points,
-      double maxPointsDay,
-      double maxPointsWeek,
-      double dailyAllowance,
-      double weeklyAllowance,
-      DateTime latestEdit,
-      bool isVisible,
-      String note,
-      bool uploaded}) {
+      {double points, double maxPointsDay, double maxPointsWeek, double dailyAllowance, double weeklyAllowance, bool isVisible, String note, bool uploaded}) {
     bool somethingChanged = false;
     UserExercise usEx = getUserExercise(id);
     if (points != null && points != usEx.points) {
@@ -674,17 +696,13 @@ class Exercises with ChangeNotifier {
       somethingChanged = true;
       usEx.uploaded = uploaded;
     }
-    if (latestEdit == null && somethingChanged) {
-      latestEdit = DateTime.now();
+    if (somethingChanged) {
+      DateTime latestEdit = DateTime.now();
+      usEx.uploaded = false;
       usEx.latestEdit = latestEdit;
       print("updated user-exercise: $latestEdit");
       this.uploadOfflineExercises();
       this.saveUserExercises();
-    } else if (latestEdit != null) {
-      usEx.latestEdit = latestEdit;
-      this.uploadOfflineExercises();
-      this.saveUserExercises();
-      print("updated user-exercise");
     }
   }
 

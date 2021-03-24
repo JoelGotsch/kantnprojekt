@@ -10,7 +10,6 @@ import 'package:flutter_datetime_picker/flutter_datetime_picker.dart';
 import '../providers/workout.dart' as wo;
 import '../providers/workouts.dart' as wos;
 import '../providers/exercises.dart' as exs;
-import '../misc/exercise.dart' as ex;
 import '../misc/user_exercise.dart' as usEx;
 import '../misc/decimalInputFormatter.dart';
 // import '../views/edit_workout.dart';
@@ -113,7 +112,7 @@ class _WorkoutItemState extends State<WorkoutItem> {
           title: Text('An error occurred!'),
           content: Text('Something went wrong.'),
           actions: <Widget>[
-            FlatButton(
+            TextButton(
               child: Text('Okay'),
               onPressed: () {
                 Navigator.of(ctx).pop();
@@ -268,12 +267,13 @@ class _WorkoutItemState extends State<WorkoutItem> {
                           _chosenExercise == null ? Text("") : Text(_chosenExercise.unit),
                           Container(
                             width: MediaQuery.of(context).size.width * 0.2,
-                            child: RaisedButton(
+                            child: ElevatedButton(
                               onPressed: _addAction,
-                              color: Theme.of(context).accentColor,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10.0),
-                                // side: BorderSide(color: Colors.red)
+                              style: ElevatedButton.styleFrom(
+                                primary: Theme.of(context).accentColor,
+                                shape: new RoundedRectangleBorder(
+                                  borderRadius: new BorderRadius.circular(10.0),
+                                ),
                               ),
                               child: Icon(
                                 Icons.add_circle,

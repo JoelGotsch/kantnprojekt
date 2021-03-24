@@ -9,7 +9,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 // import 'dart:collection'; // for linked hashmaps
 
 import '../misc/global_data.dart';
-import '../misc/functions.dart' as funcs;
 import 'challenge.dart';
 
 class Challenges with ChangeNotifier {

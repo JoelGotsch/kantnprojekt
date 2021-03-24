@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:kantnprojekt/views/challenge_details.dart';
 
 import '../providers/challenge.dart' as ch;

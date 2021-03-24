@@ -1,6 +1,3 @@
-import 'dart:math';
-
-import 'package:dropdown_search/dropdown_search.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -89,11 +86,29 @@ class _ExerciseItemState extends State<ExerciseItem> {
           latestEdit: DateTime.now(),
           userId: Provider.of<User>(context, listen: false).userId);
       UserExercise usEx = UserExercise.fromExercise(ex);
-      Provider.of<Exercises>(context, listen: false).addExercise(ex, saveAndNotifyIfChanged: false);
-      Provider.of<Exercises>(context, listen: false).addUserExercise(usEx, saveAndNotifyIfChanged: true);
-      Provider.of<Exercises>(context, listen: false).cleanEmptyExercises();
-      print("userExercise saved: $usEx");
-      print(usEx.toString());
+      //TODO: figure out where the exercise is exactly created, upload only the userExercise and add it only if that was successful!!
+      Map<String, dynamic> uploadResponse = await Provider.of<Exercises>(context, listen: false).uploadUserExercise(usEx);
+      if (uploadResponse["success"] == true) {
+        Provider.of<Exercises>(context, listen: false).addExercise(ex, saveAndNotifyIfChanged: false);
+        Provider.of<Exercises>(context, listen: false).addUserExercise(usEx, saveAndNotifyIfChanged: false);
+        Provider.of<Exercises>(context, listen: false).cleanEmptyExercises();
+      } else {
+        await showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text("Couldn't upload new Exercise"),
+            content: Text(uploadResponse["message"]),
+            actions: <Widget>[
+              TextButton(
+                child: Text('Okay'),
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                },
+              )
+            ],
+          ),
+        );
+      }
     } else {
       //updating existing UserExercise
       Provider.of<Exercises>(context, listen: false).updateUserExercise(widget.userExercise.localId,
@@ -310,12 +325,13 @@ class _ExerciseItemState extends State<ExerciseItem> {
                       )),
                   Container(
                     width: MediaQuery.of(context).size.width * 0.4,
-                    child: RaisedButton(
+                    child: ElevatedButton(
                       onPressed: _saveExercise,
-                      color: Theme.of(context).accentColor,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10.0),
-                        // side: BorderSide(color: Colors.red)
+                      style: ElevatedButton.styleFrom(
+                        primary: Theme.of(context).accentColor,
+                        shape: new RoundedRectangleBorder(
+                          borderRadius: new BorderRadius.circular(10.0),
+                        ),
                       ),
                       child: Text(
                         "Save Changes",

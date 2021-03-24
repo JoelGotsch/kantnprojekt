@@ -279,31 +279,33 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
                             ),
                             usExs[i].unit == "" ? Text("${usExs[i].points} points per exercise") : Text("${usExs[i].points} points per ${usExs[i].unit}"),
                             widget.challenge.exercises.containsKey(usExs[i].exercise.exerciseId)
-                                ? RaisedButton(
+                                ? ElevatedButton(
                                     onPressed: () {
                                       widget.challenge.exercises.remove(usExs[i].exercise.exerciseId);
                                       setState(() {});
                                     },
-                                    color: Theme.of(context).accentColor,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10.0),
-                                      // side: BorderSide(color: Colors.red)
+                                    style: ElevatedButton.styleFrom(
+                                      primary: Theme.of(context).accentColor,
+                                      shape: new RoundedRectangleBorder(
+                                        borderRadius: new BorderRadius.circular(10.0),
+                                      ),
                                     ),
                                     child: Text(
                                       "remove Exercise",
                                       style: TextStyle(color: Colors.white70),
                                     ),
                                   )
-                                : RaisedButton(
+                                : ElevatedButton(
                                     onPressed: () {
                                       widget.challenge.exercises.putIfAbsent(
                                           usExs[i].exercise.exerciseId, () => ChallengeExercise.fromExercise(usExs[i].exercise, widget.challenge.challengeId));
                                       setState(() {});
                                     },
-                                    color: Theme.of(context).accentColor,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10.0),
-                                      // side: BorderSide(color: Colors.red)
+                                    style: ElevatedButton.styleFrom(
+                                      primary: Theme.of(context).accentColor,
+                                      shape: new RoundedRectangleBorder(
+                                        borderRadius: new BorderRadius.circular(10.0),
+                                      ),
                                     ),
                                     child: Text(
                                       "add Exercise",
