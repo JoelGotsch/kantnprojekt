@@ -197,7 +197,7 @@ class Challenges with ChangeNotifier {
       challengeEditDates.forEach((id, chLatestEdit) {
         if (_challenges.containsKey(id)) {
           Challenge ch = _challenges[id];
-          if (ch.lastRefresh.compareTo(chLatestEdit) < 0) {
+          if (ch.lastRefresh.toUtc().compareTo(chLatestEdit) < 0) {
             // exLatestEdit is later => info on server is newer
             print("Found newer version of challenge $id on server: server: ${chLatestEdit.toIso8601String()} vs local ${ch.lastRefresh.toIso8601String()}");
             serverNewChIds.add(id);
@@ -266,13 +266,13 @@ class Challenges with ChangeNotifier {
       queryParameters["challenge_ids"] = challengeIds.join(",");
     }
     if (minEditDate != null) {
-      queryParameters["latest_edit_date"] = minEditDate.toIso8601String();
+      queryParameters["latest_edit_date"] = minEditDate.toUtc().toIso8601String();
     }
     if (startDate != null) {
-      queryParameters["start_date"] = startDate.toIso8601String();
+      queryParameters["start_date"] = startDate.toUtc().toIso8601String();
     }
     if (endDate != null) {
-      queryParameters["end_date"] = endDate.toIso8601String();
+      queryParameters["end_date"] = endDate.toUtc().toIso8601String();
     }
     queryParameters["number"] = number.toString();
     Uri url = Uri.https(

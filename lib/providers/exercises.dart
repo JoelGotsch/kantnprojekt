@@ -175,7 +175,7 @@ class Exercises with ChangeNotifier {
         if (existsExercise(exId)) {
           //maybe an update?
           Exercise ex = getExercise(exId);
-          if (ex.latestEdit.compareTo(exLatestEdit) < 0) {
+          if (ex.latestEdit.toUtc().compareTo(exLatestEdit) < 0) {
             // exLatestEdit is later => info on server is newer
             print("Found newer version of exercise $exId on server: server: ${exLatestEdit.toIso8601String()} vs local ${ex.latestEdit.toIso8601String()}");
             serverNewExIds.add(exId);
@@ -281,7 +281,7 @@ class Exercises with ChangeNotifier {
       queryParameters["exercise_id"] = exerciseId;
     }
     if (minEditDate != null) {
-      queryParameters["latest_edit_date"] = minEditDate.toIso8601String();
+      queryParameters["latest_edit_date"] = minEditDate.toUtc().toIso8601String();
     }
     if (userExerciseIds != null) {
       queryParameters["user_exercise_ids"] = userExerciseIds.join(",");

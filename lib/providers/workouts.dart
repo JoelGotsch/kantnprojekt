@@ -254,13 +254,13 @@ class Workouts with ChangeNotifier {
       queryParameters["workout_ids"] = workoutIds.join(",");
     }
     if (minEditDate != null) {
-      queryParameters["latest_edit_date"] = minEditDate.toIso8601String();
+      queryParameters["latest_edit_date"] = minEditDate.toUtc().toIso8601String();
     }
     if (startDate != null) {
-      queryParameters["start_date"] = startDate.toIso8601String();
+      queryParameters["start_date"] = startDate.toUtc().toIso8601String();
     }
     if (endDate != null) {
-      queryParameters["end_date"] = endDate.toIso8601String();
+      queryParameters["end_date"] = endDate.toUtc().toIso8601String();
     }
     queryParameters["number"] = number.toString();
     queryParameters["user_id"] = userId.toString();

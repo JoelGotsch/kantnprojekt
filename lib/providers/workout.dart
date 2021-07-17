@@ -184,8 +184,8 @@ class Workout with ChangeNotifier {
       'id': workoutId,
       'local_id': localId,
       'user_id': userId,
-      'date': date.toIso8601String(),
-      'latest_edit': latestEdit.toIso8601String(),
+      'date': date.toIso8601String(), //always local time
+      'latest_edit': latestEdit.toUtc().toIso8601String(),
       'note': note,
       'actions': helper,
       'not_deleted': _notDeleted,

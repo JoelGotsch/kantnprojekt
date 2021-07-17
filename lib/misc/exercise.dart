@@ -107,7 +107,7 @@ class Exercise extends ExerciseParent {
       'max_points_week': maxPointsWeek,
       'daily_allowance': dailyAllowance,
       'weekly_allowance': weeklyAllowance,
-      'latest_edit': latestEdit.toIso8601String(),
+      'latest_edit': latestEdit.toUtc().toIso8601String(),
       'checkbox': checkbox,
       'checkbox_reset': checkboxReset,
       'uploaded': uploaded,

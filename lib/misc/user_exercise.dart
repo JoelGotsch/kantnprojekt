@@ -139,7 +139,7 @@ class UserExercise {
       'is_visible': isVisible,
       'checkbox': isCheckbox,
       'checkbox_reset': checkBoxReset,
-      'latest_edit': latestEdit.toIso8601String(),
+      'latest_edit': latestEdit.toUtc().toIso8601String(),
       'uploaded': uploaded,
       'not_deleted': notDeleted,
     });

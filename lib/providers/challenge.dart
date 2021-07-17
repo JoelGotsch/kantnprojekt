@@ -27,7 +27,7 @@ class ChallengeWorkout {
 
   Map<String, dynamic> toJson() {
     return ({
-      'date': date.toIso8601String(),
+      'date': date.toUtc().toIso8601String(),
       'points': points,
     });
   }
@@ -70,13 +70,14 @@ class ChallengeUser {
     // deleting all workouts after oldest workout in parsedJson
     // adding new workouts
     // notifylisteners/ save
-    DateTime minDate = DateTime.now();
+    // assumes datetimes in parsedJson are UTC times
+    DateTime minDate = DateTime.now().toUtc();
     bool minDateChanged = false;
     Map<String, ChallengeWorkout> updatedUserWorkouts;
     List<String> deleteUserWorkouts;
     try {
       String newHash = getFromJson("hash", parsedJson, hash).toString();
-      DateTime newLatestEdit = DateTime.parse(getFromJson("latest_edit", parsedJson, latestEdit.toIso8601String()).toString());
+      DateTime newLatestEdit = DateTime.parse(getFromJson("latest_edit", parsedJson, latestEdit.toUtc().toIso8601String()).toString());
       String newUserName = getFromJson("user_name", parsedJson, userName).toString();
       hash = newHash;
       latestEdit = newLatestEdit;
@@ -122,9 +123,9 @@ class ChallengeUser {
     return ({
       'user_id': userId,
       'user_name': userName,
-      'user_start_challenge': startedChallenge.toIso8601String(),
+      'user_start_challenge': startedChallenge.toUtc().toIso8601String(),
       'workouts': helper,
-      'latest_edit': latestEdit.toIso8601String(),
+      'latest_edit': latestEdit.toUtc().toIso8601String(),
       'hash': hash,
     });
   }
@@ -230,7 +231,7 @@ class Challenge with ChangeNotifier {
     DateTime startDate = DateTime.parse(getFromJson("start_date", parsedJson, "2020-01-01 00:00:00.000").toString());
     DateTime endDate = DateTime.parse(getFromJson("end_date", parsedJson, "2020-01-01 00:00:00.000").toString());
     String evalPeriod = getFromJson("eval_period", parsedJson, "").toString();
-    DateTime lastRefresh = DateTime.parse(getFromJson("last_refresh", parsedJson, DateTime.now().toIso8601String()).toString());
+    DateTime lastRefresh = DateTime.parse(getFromJson("last_refresh", parsedJson, DateTime.now().toUtc().toIso8601String()).toString());
     String hash = getFromJson("hash", parsedJson, "").toString();
 
     bool uploaded = getFromJson("uploaded", parsedJson, "true").toString().toLowerCase() == "true";
@@ -291,10 +292,10 @@ class Challenge with ChangeNotifier {
       String newname = getFromJson("name", parsedJson, name).toString();
       String newdescription = getFromJson("description", parsedJson, description).toString();
       double newminPoints = getFromJson("min_points", parsedJson, minPoints);
-      DateTime newstartDate = DateTime.parse(getFromJson("start_date", parsedJson, startDate.toIso8601String()).toString());
-      DateTime newendDate = DateTime.parse(getFromJson("end_date", parsedJson, endDate.toIso8601String()).toString());
+      DateTime newstartDate = DateTime.parse(getFromJson("start_date", parsedJson, startDate.toUtc().toIso8601String()).toString());
+      DateTime newendDate = DateTime.parse(getFromJson("end_date", parsedJson, endDate.toUtc().toIso8601String()).toString());
       String newevalPeriod = getFromJson("eval_period", parsedJson, evalPeriod).toString();
-      DateTime newlastRefresh = DateTime.parse(getFromJson("last_refresh", parsedJson, lastRefresh.toIso8601String()).toString());
+      DateTime newlastRefresh = DateTime.parse(getFromJson("last_refresh", parsedJson, lastRefresh.toUtc().toIso8601String()).toString());
       String newhash = getFromJson("hash", parsedJson, hash).toString();
       name = newname;
       description = newdescription;
@@ -344,13 +345,13 @@ class Challenge with ChangeNotifier {
       'name': name,
       'description': description,
       'min_points': minPoints,
-      'start_date': startDate.toIso8601String(),
-      'end_date': endDate.toIso8601String(),
+      'start_date': startDate.toUtc().toIso8601String(),
+      'end_date': endDate.toUtc().toIso8601String(),
       'eval_period': evalPeriod,
       'users': helperUsers,
       'exercises': helperExercises,
       'uploaded': uploaded,
-      'last_refresh': lastRefresh.toIso8601String(),
+      'last_refresh': lastRefresh.toUtc().toIso8601String(),
       'hash': hash,
     });
   }
