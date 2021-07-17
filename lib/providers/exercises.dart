@@ -449,7 +449,13 @@ class Exercises with ChangeNotifier {
     String errorMsg = "";
     bool _uploaded = false;
     http.Response response;
-    String helper = this.userExercisesToString(exerciseMap: {usEx.localId: usEx});
+    String id = "";
+    if (usEx.userExerciseId == null || usEx.userExerciseId == "") {
+      id = usEx.localId;
+    } else {
+      id = usEx.userExerciseId;
+    }
+    String helper = this.userExercisesToString(exerciseMap: {id: usEx});
 
     Uri url = Uri.https(
       GlobalData.apiUrlStart,
